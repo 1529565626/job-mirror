@@ -110,31 +110,71 @@ const routes = {
     return { exists, processed, size: exists ? fs.statSync(p).size : 0 }
   },
 
-  // 自动处理收件箱：异步调用 Claude CLI 解析简历，前端轮询 .processed 检测完成
+  // 自动处理收件箱：异步调用 Claude CLI，捕获进度输出，前端轮询展示
   'POST /api/inbox/process': () => {
     const resumePath = path.join(ROOT, 'inbox', 'resume.txt')
     if (!fs.existsSync(resumePath)) return { ok: false, error: '收件箱为空' }
 
-    // 如果已经在处理中，不重复触发
     const lockFile = path.join(ROOT, 'inbox', '.processing')
     if (fs.existsSync(lockFile)) return { ok: true, status: 'already-running' }
 
-    // 写入处理中标记
     fs.writeFileSync(lockFile, new Date().toISOString(), 'utf-8')
 
-    // 清理旧的完成标记
     const processed = path.join(ROOT, 'inbox', '.processed')
     if (fs.existsSync(processed)) fs.unlinkSync(processed)
 
-    const prompt = '用职镜导入收件箱。完成后只输出OK。'
+    // 初始化进度文件
+    const progressFile = path.join(ROOT, 'inbox', '.progress.json')
+    fs.writeFileSync(progressFile, JSON.stringify({ steps: [], current: '正在启动 AI 解析引擎...', startedAt: new Date().toISOString() }))
+
+    const prompt = [
+      '用职镜导入收件箱。在处理的每个步骤完成后，输出一行进度标记：',
+      '[STEP] <步骤名称>',
+      '例如：',
+      '[STEP] 基本信息已提取',
+      '[STEP] 技能分析完成 (15项)',
+      '[STEP] 工作经历解析完成 (3段)',
+      '[STEP] 项目经历解析完成',
+      '[STEP] 教育背景解析完成',
+      '[STEP] 档案已保存',
+      '最后输出 DONE'
+    ].join('\n')
 
     const tmpFile = path.join(os.tmpdir(), `jobmirror-import-${Date.now()}.txt`)
     fs.writeFileSync(tmpFile, prompt, 'utf-8')
 
     const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && type "${tmpFile}" | claude -p --output-format text 2>&1`], {
       cwd: PROJECT_DIR,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
+    })
+
+    let output = ''
+    child.stdout.on('data', (data) => {
+      output += data.toString()
+      // 解析 [STEP] 行并写入进度文件
+      const steps = []
+      const lines = output.split('\n')
+      for (const line of lines) {
+        const m = line.match(/\[STEP\]\s*(.+)/)
+        if (m) steps.push({ text: m[1].trim(), time: new Date().toISOString() })
+      }
+      if (steps.length > 0) {
+        const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        progress.steps = steps
+        progress.current = steps[steps.length - 1].text
+        fs.writeFileSync(progressFile, JSON.stringify(progress))
+      }
+    })
+
+    child.on('close', () => {
+      // 清理锁文件和临时文件
+      try { fs.unlinkSync(lockFile) } catch {}
+      try { fs.unlinkSync(tmpFile) } catch {}
+      // 更新进度为完成或错误
+      const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+      progress.current = fs.existsSync(processed) ? '导入完成' : '导入未完成，请重试'
+      fs.writeFileSync(progressFile, JSON.stringify(progress))
     })
 
     child.on('error', () => {
@@ -142,8 +182,13 @@ const routes = {
       try { fs.unlinkSync(tmpFile) } catch {}
     })
 
-    // 返回 accepted，前端开始轮询
     return { ok: true, status: 'started' }
+  },
+
+  // 导入进度查询
+  'GET /api/inbox/progress': () => {
+    const p = path.join(ROOT, 'inbox', '.progress.json')
+    return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : { steps: [], current: '空闲' }
   },
 
   // 导入状态持久化（跨页面刷新保留等待态）

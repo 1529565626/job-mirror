@@ -48,12 +48,41 @@
           <p class="drop-hint">{{ extractingFileName }}</p>
         </template>
 
-        <!-- 提取成功 → AI 自动解析中 -->
-        <template v-else-if="uploadResult === 'success' || uploadResult === 'processing'">
+        <!-- AI 解析中 → 进度展示 -->
+        <template v-else-if="uploadResult === 'processing'">
+          <div class="drop-title-row">
+            <div class="spinner"></div>
+            <p class="drop-title">AI 正在解析简历</p>
+          </div>
+          <p class="drop-current-step">{{ progress.current }}</p>
+          <!-- 进度条 -->
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+          </div>
+          <!-- 步骤列表 -->
+          <div class="progress-steps">
+            <div
+              v-for="(s, i) in allSteps"
+              :key="i"
+              class="progress-step"
+              :class="{ 'step-done': s.done, 'step-active': s.active }"
+            >
+              <span class="step-icon">{{ s.done ? '✓' : s.active ? '◉' : '○' }}</span>
+              <span class="step-label">{{ s.label }}</span>
+              <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
+            </div>
+          </div>
+          <p class="drop-hint">
+            <span class="pulse-dot"></span>
+            首次解析约需 30-60 秒{{ '.'.repeat(waitingDots) }}
+          </p>
+        </template>
+
+        <!-- 手动轮询模式（降级） -->
+        <template v-else-if="uploadResult === 'success'">
           <div class="spinner"></div>
-          <p class="drop-title">{{ uploadResult === 'processing' ? 'AI 正在解析简历...' : '简历已就绪' }}</p>
-          <p class="drop-desc" v-if="uploadResult === 'processing'">正在自动提取技能、经历、教育背景…</p>
-          <p class="drop-desc" v-else>正在连接 AI 服务…</p>
+          <p class="drop-title">简历已就绪</p>
+          <p class="drop-desc">正在连接 AI 服务…</p>
           <p class="drop-hint">
             <span class="pulse-dot"></span>
             请稍候{{ '.'.repeat(waitingDots) }}
@@ -333,9 +362,39 @@ function resetUpload() {
 }
 
 // === 轮询收件箱状态 ===
+// 进度追踪
+const progress = ref({ steps: [], current: '' })
+const milestoneLabels = [
+  { key: '基本信息', label: '基本信息' },
+  { key: '技能', label: '技能分析' },
+  { key: '经历', label: '工作经历' },
+  { key: '项目', label: '项目经历' },
+  { key: '教育', label: '教育背景' },
+  { key: '保存', label: '保存档案' }
+]
+
+const allSteps = computed(() =>
+  milestoneLabels.map(m => {
+    const found = progress.value.steps.find(s => s.text.includes(m.key))
+    const detailMatch = found ? found.text.match(/\((.+)\)/) : null
+    return {
+      label: m.label,
+      done: !!found,
+      active: !found && progress.value.steps.length > 0 && milestoneLabels.findIndex(l => l.key === m.key) === (progress.value.steps.length >= milestoneLabels.length ? milestoneLabels.length : progress.value.steps.length),
+      detail: detailMatch ? detailMatch[1] : ''
+    }
+  })
+)
+
+const progressPercent = computed(() => {
+  const done = progress.value.steps.length
+  return Math.min(100, Math.round((done / milestoneLabels.length) * 100))
+})
+
 const pollTimer = ref(null)
 const waitingDots = ref(0)
 let dotsTimer = null
+let progressPollTimer = null
 
 function startPolling(isAuto = false) {
   if (!isAuto) {
@@ -359,6 +418,18 @@ function startPolling(isAuto = false) {
 
   check()
   pollTimer.value = setInterval(check, 3000)
+
+  // 自动模式额外轮询进度
+  if (isAuto) {
+    const pollProgress = async () => {
+      try {
+        const res = await api.get('/api/inbox/progress')
+        if (res) progress.value = res
+      } catch {}
+    }
+    pollProgress()
+    progressPollTimer = setInterval(pollProgress, 1500)
+  }
 }
 
 function startDots() {
@@ -379,6 +450,10 @@ function stopPolling() {
   if (pollTimer.value) {
     clearInterval(pollTimer.value)
     pollTimer.value = null
+  }
+  if (progressPollTimer) {
+    clearInterval(progressPollTimer)
+    progressPollTimer = null
   }
   stopDots()
 }
@@ -975,6 +1050,86 @@ onUnmounted(() => {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   margin: var(--space-sm) 0;
+}
+
+/* 进度展示 */
+.drop-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.drop-current-step {
+  font-size: var(--text-sm);
+  color: var(--blue);
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: var(--space-md);
+  min-height: 1.4em;
+}
+
+.progress-bar-wrap {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto var(--space-md);
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+.progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.3s;
+}
+
+.step-done {
+  color: var(--color-success);
+}
+
+.step-active {
+  color: var(--blue);
+  background: rgba(43, 127, 216, 0.06);
+}
+
+.step-icon {
+  font-size: var(--text-xs);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.step-label {
+  flex: 1;
+}
+
+.step-detail {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
 /* 终端命令展示 */
