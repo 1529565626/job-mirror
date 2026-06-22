@@ -176,25 +176,19 @@ const routes = {
         windowsHide: true
       })
 
-      // 从 Claude 输出中提取润色结果（多种策略容错）
-      let polished = raw.trim()
-      // 去除可能的 chcp 输出前缀
-      polished = polished.replace(/^Active code page:\s*\d+\s*/i, '').trim()
+      // 提取策略：取 Claude 输出中第一个有实质内容的 > 引用行
+      let polished = raw.trim().replace(/^Active code page:\s*\d+\s*/i, '').trim()
 
-      // 策略1: **润色后：** + > 引用
-      let m = polished.match(/\*\*润色后[：:]\*\*\s*\n\s*>\s*(.+?)(?:\n\n|\n\*\*|---|$)/s)
-      // 策略2: 任意 > 引用块（取第一段有意义文本）
-      if (!m) m = polished.match(/>\s*\*?\*?(.+?)\*?\*?\s*(?:\n|$)/)
-      // 策略3: JSON
-      if (!m) {
-        const jm = polished.match(/\{[^}]*"result"\s*:\s*"([^"]+)"/)
-        if (jm) m = [null, jm[1]]
-      }
+      const quoteLines = polished.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.startsWith('>'))
+        .map(l => l.replace(/^>\s*/, '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1').trim())
+        .filter(l => l.length >= 10 && !l.startsWith('原文') && !l.startsWith('约束'))
 
-      if (m) polished = m[1].trim().replace(/\*+$/, '').trim()
-      else polished = polished.split('\n').filter(l => l.trim() && !l.startsWith('原文') && !l.startsWith('约束') && l.length > 5)[0] || polished
+      if (quoteLines.length > 0) polished = quoteLines[0]
+      else polished = ''
 
-      if (!polished || polished.length < 3 || polished === originalText) return { ok: false, error: '润色未产生变化' }
+      if (!polished || polished === originalText) return { ok: false, error: '润色未产生变化' }
       return { ok: true, polishedText: polished }
     } catch (e) {
       return { ok: false, error: (e.stderr || e.message || '润色失败').slice(0, 200) }

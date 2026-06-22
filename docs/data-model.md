@@ -224,12 +224,14 @@
       {
         "name": "数据分析",
         "level": "熟练掌握",
-        "importance": "required"
+        "importance": "required",
+        "category": "hard"
       },
       {
         "name": "SQL",
         "level": "了解",
-        "importance": "preferred"
+        "importance": "preferred",
+        "category": "hard"
       }
     ],
     "requiredExperience": {
@@ -266,6 +268,7 @@
 | `parsed.requiredSkills[].name` | string | 是 | 技能名称 |
 | `parsed.requiredSkills[].level` | string | 否 | 岗位要求的掌握程度描述（保留原文表述） |
 | `parsed.requiredSkills[].importance` | enum | 是 | `required`(必须) / `preferred`(加分项) |
+| `parsed.requiredSkills[].category` | enum | 是 | `hard`(硬技能) / `soft`(软技能) / `industry`(行业术语) |
 | `parsed.requiredExperience.years` | number | 否 | 要求工作年限 |
 | `parsed.requiredExperience.fields` | string[] | 否 | 要求的具体领域经验 |
 | `parsed.requiredEducation.degree` | string | 否 | 学历要求 |
@@ -459,11 +462,16 @@ Claude 对标分析        (Skill 读取 rawText, 解析为 parsed, 回写文件
 | `breakdown.skillMatch` | integer | 技能维度匹配度 0-100 |
 | `breakdown.experienceMatch` | integer | 经验维度匹配度 0-100 |
 | `breakdown.educationMatch` | integer | 学历维度匹配度 0-100 |
+| `weightAdjustment` | string/null | 触发的动态权重场景：`"fresh-graduate"` / `"career-changer"` / `"executive"` / `null` |
+| `weightAdjustmentReason` | string/null | 权重调整原因，`null` 表示使用标准权重 |
 | `summary` | string | 匹配度总结（1-2 句话，Claude 生成） |
 
-**评分逻辑**（在 SKILL.md 中固化）:
+**评分逻辑**（在 SKILL.md 中固化，支持场景自适应动态权重）:
 ```
-overallScore = skillMatch × 0.5 + experienceMatch × 0.3 + educationMatch × 0.2
+标准：overallScore = skillMatch × 0.5 + experienceMatch × 0.3 + educationMatch × 0.2
+应届生：educationMatch 权重升至 0.5，experienceMatch 降至 0.2
+转行者：skillMatch 权重升至 0.6，experienceMatch 降至 0.1
+高管：experienceMatch 权重升至 0.4，educationMatch 降至 0.1
 ```
 
 #### skillAnalysis — 逐技能对标
@@ -515,6 +523,16 @@ userProficiency == null           →  missing
 | `topic` | string | 面试准备主题 |
 | `importance` | enum | `high` / `medium` / `low` |
 | `prepPoints` | string[] | 具体准备要点，每条一个可执行的行动项 |
+| `starStory` | object/null | 关联的 STAR 叙事（S/T/A/R 四字段），从用户经历自动生成 |
+| `sourceExperience` | string/null | STAR 故事的来源经历标识（如"XX公司·数据分析师"） |
+
+**skillAnalysis 新增字段**:
+
+| `gapStory` | object/null | 仅 `partial` 技能时生成，含 `strategy`（包装策略）和 `sampleResponse`（参考回答） |
+
+**报告级新增独立字段**:
+
+| `predictedQuestions` | array | 基于 JD + 用户技能差距预测的高频面试题，每题含 question/whyThisQuestion/relatedExperience/suggestedFramework |
 
 ---
 

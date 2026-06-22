@@ -128,9 +128,23 @@
     未悬停时收缩在右侧边缘
     状态: 待设计
 
+2026-06-22  ResumeSkills 借鉴合入（PM主导 + Coder实施）→ 完成
+ ├─ 调研: docs/reference-from-resumeskills.md — 8点借鉴评审
+ ├─ 方案: docs/implementation-plan-resumeskills-ref.md — 7模块功能实现报告
+ ├─ SKILL.md: 821 → 980 行，7 模块全部落地
+ │   ├─ G: 边界情况处理（7场景 + 4组动态评分权重）
+ │   ├─ F: 工作流歧义处理规则（3条消歧规则）
+ │   ├─ B: 关键词三分类（hard/soft/industry → JD解析+对标+输出全链路）
+ │   ├─ C: 子弹点 Before/After 改写（suggestion 字段升级为结构化对象）
+ │   ├─ A: ATS 格式检查（排版红线/Section标题/关键词密度，5项检查）
+ │   ├─ D: STAR 故事 + 包装话术 + 高频面试题预测
+ │   └─ E: 对比维度扩展（成长空间/行业匹配/技能天花板 + 加权推荐公式）
+ ├─ data-model.md: 同步 schema 变更（category/weightAdjustment/starStory/gapStory/predictedQuestions）
+ └─ 验证: 待 Claude Code 端到端测试
+
 === 当前状态 ===
 
   状态: 开发中
-  阶段: 三层分离排版引擎完成 — 待办 #2 基础已就绪，#3 排队中
+  阶段: SKILL.md 借鉴合入完成 — 待前端组件适配 + 端到端联调
   阻塞: 无
   下一步: #3 简历编辑面板可折叠，或 #2 多模板扩展
