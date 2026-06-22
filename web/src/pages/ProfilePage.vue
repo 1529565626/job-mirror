@@ -307,26 +307,18 @@ async function handleFile(file) {
     await store.saveResumeFile(base64, file.name, fileType)
     isExtracting.value = false
 
-    // 自动调用 AI 解析
+    // 触发后台 AI 解析
     uploadResult.value = 'processing'
     startDots()
 
-    try {
-      const result = await api.post('/api/inbox/process')
-      if (result.ok) {
-        stopDots()
-        await store.fetch()
-        if (!store.isEmpty) {
-          uploadResult.value = null
-          return
-        }
-      }
-      throw new Error(result.error || '解析未完成')
-    } catch (processErr) {
-      // AI 自动解析失败 → 降级为手动模式
+    const result = await api.post('/api/inbox/process')
+    if (result.ok) {
+      // 后台任务已启动，轮询等待完成
+      startPolling(true)
+    } else {
       stopDots()
-      uploadResult.value = 'success'
-      startPolling()
+      uploadResult.value = 'error'
+      uploadError.value = result.error || '启动解析失败'
     }
   } catch (e) {
     isExtracting.value = false
@@ -345,8 +337,10 @@ const pollTimer = ref(null)
 const waitingDots = ref(0)
 let dotsTimer = null
 
-function startPolling() {
-  uploadResult.value = 'success'
+function startPolling(isAuto = false) {
+  if (!isAuto) {
+    uploadResult.value = 'success'
+  }
   showUpdateHint.value = false
   store.saveImportState({ status: 'waiting', startedAt: new Date().toISOString() })
   startDots()
