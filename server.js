@@ -119,33 +119,70 @@ const routes = {
   },
   'DELETE /api/jds/:id': (_, id) => { fs.unlinkSync(path.join(ROOT, 'jds', id + '.json')); return { ok: true } },
 
-  // JD 自动分析（异步调用 Claude CLI）
+  // JD 自动分析（自包含 prompt，无需项目上下文，更快）
   'POST /api/jds/:id/process': (_, id) => {
     const jdFile = path.join(ROOT, 'jds', id + '.json')
     if (!fs.existsSync(jdFile)) return { ok: false, error: 'JD 不存在' }
 
+    const profileFile = path.join(ROOT, 'profile.json')
+    const reportFile = path.join(ROOT, 'reports', id + '.json')
     const progressFile = path.join(ROOT, 'jds', id + '.progress.json')
     const logFile = path.join(ROOT, 'jds', id + '.log.txt')
 
-    // 检查是否已在运行（5 分钟超时）
+    // 检查是否已在运行
     if (fs.existsSync(progressFile)) {
       try {
         const prev = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
         if (prev.status === 'running' && Date.now() - new Date(prev.startedAt).getTime() < 300000) {
           return { ok: true, status: 'already-running' }
         }
-      } catch { fs.unlinkSync(progressFile) }
+      } catch {}
     }
+
+    // 确保 reports 目录存在
+    fs.mkdirSync(path.join(ROOT, 'reports'), { recursive: true })
 
     // 初始化进度
     fs.writeFileSync(progressFile, JSON.stringify({ status: 'running', steps: [], current: '正在启动分析引擎…', startedAt: new Date().toISOString() }))
     fs.writeFileSync(logFile, '=== JD 分析日志 ' + new Date().toISOString() + ' ===\n\n')
 
-    // 简化 prompt，不传文件路径（避免中文路径和转义问题）
-    const prompt = `用职镜分析岗位: ${id}。在分析的每个关键步骤用 [STEP] 标记输出当前进度。完成后输出 DONE。`
+    // 自包含 prompt：系统指令 + 文件路径（省去加载 SKILL.md 的 10s 上下文开销）
+    const analysisPrompt = [
+      '你是职镜AI面试助手。对岗位JD和用户技能档案进行对标分析。',
+      '',
+      '步骤：',
+      '[STEP] 解析JD',
+      '1. 读取JD: ' + jdFile + '，提取岗位名称、技能要求（含分类hard/soft/industry和importance required/preferred）、经验要求、学历要求、职责列表',
+      '',
+      '[STEP] 技能对标',
+      '2. 读取档案: ' + profileFile + '，逐技能对标。熟练度数值: expert=5,proficient=4,advanced=3,intermediate=2,novice=1',
+      '   JD要求值:精通=4,熟练=3,掌握/熟悉=2,了解=1',
+      '   用户>=JD→matched, 用户>0且<JD→partial, 用户无→missing',
+      '   对partial/missing生成learningAdvice(estimatedWeeks/difficulty/suggestions)',
+      '   对partial技能生成gapStory(strategy/sampleResponse)',
+      '',
+      '[STEP] 计算匹配度',
+      '3. 评分: skillMatch(权重0.5)=Σ匹配贡献/Σ总权重×100, required权重3 preferred权重1',
+      '   experienceMatch(0.3): 用户年限>=要求×1.5→100, >=要求→90, >=0.7→70, >=0.5→50, <0.5→30',
+      '   educationMatch(0.2): >=要求→100, -1级→60, <-1级→30',
+      '   overallScore=skillMatch×0.5+experienceMatch×0.3+educationMatch×0.2, 取5的倍数',
+      '',
+      '[STEP] 生成报告',
+      '4. 生成resumeSuggestions(最多5条, 含section/priority/issue/suggestion{before,after,formula,note}/reason)',
+      '   生成interviewPrep(2-4主题, 含topic/importance/prepPoints/starStory{situation,task,action,result}/sourceExperience)',
+      '   生成predictedQuestions(3-5题, 含question/whyThisQuestion/relatedExperience/suggestedFramework)',
+      '5. 报告写入: ' + reportFile + ' (JSON, 2空格缩进, UTF-8)',
+      '   JD回填: 更新 ' + jdFile + ' 的parsed字段和reportIds',
+      '   match含weightAdjustment字段(应届生/转行者/高管时触发)',
+      '6. 输出 DONE'
+    ].join('\n')
 
-    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && claude -p "${prompt.replace(/"/g, '\\"')}" --output-format text 2>&1`], {
-      cwd: PROJECT_DIR,
+    const tmpFile = path.join(os.tmpdir(), `jobmirror-jd-${Date.now()}.txt`)
+    fs.writeFileSync(tmpFile, analysisPrompt, 'utf-8')
+
+    // 从临时目录运行 claude -p，不加载项目 SKILL.md
+    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && type "${tmpFile}" | claude -p --output-format text 2>&1`], {
+      cwd: os.tmpdir(),
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
     })
@@ -155,7 +192,6 @@ const routes = {
       const chunk = d.toString(); output += chunk
       try { fs.appendFileSync(logFile, chunk, 'utf-8') } catch {}
 
-      // 从 stdout 解析 [STEP] 标记更新进度
       const steps = []
       for (const line of output.split('\n')) {
         const m = line.match(/\[STEP\]\s*(.+)/)
@@ -172,6 +208,7 @@ const routes = {
 
     child.on('close', (code) => {
       try { fs.appendFileSync(logFile, '\n=== 进程退出，code=' + code + ' ===\n', 'utf-8') } catch {}
+      try { fs.unlinkSync(tmpFile) } catch {}
       try {
         const jd = JSON.parse(fs.readFileSync(jdFile, 'utf-8'))
         const done = jd.parsed && jd.reportIds?.length > 0
@@ -185,6 +222,7 @@ const routes = {
 
     child.on('error', (err) => {
       try { fs.appendFileSync(logFile, '\n=== 进程错误: ' + err.message + ' ===\n', 'utf-8') } catch {}
+      try { fs.unlinkSync(tmpFile) } catch {}
     })
 
     return { ok: true, status: 'started' }
