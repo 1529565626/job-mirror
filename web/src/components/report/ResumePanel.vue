@@ -34,6 +34,17 @@
       @update:config="updateConfig"
     />
     <div class="panel-actions">
+      <!-- 模板选择 -->
+      <div class="template-picker">
+        <button
+          v-for="tpl in templates"
+          :key="tpl.key"
+          class="tpl-btn"
+          :class="{ active: (config.templateName || 'professional') === tpl.key }"
+          @click="updateConfig({ templateName: tpl.key })"
+        >{{ tpl.label }}</button>
+      </div>
+
       <button class="btn btn-primary btn-full" @click="openPreview" :disabled="!hasProfile">
         在新标签页打开预览
       </button>
@@ -42,8 +53,7 @@
         <div class="export-btns">
           <button class="btn-export" @click="exportFormat('html')">下载 HTML</button>
           <button class="btn-export" @click="exportFormat('md')">下载 MD</button>
-          <button class="btn-export" @click="exportFormat('doc')">下载 DOC</button>
-          <button class="btn-export" @click="exportFormat('pdf')">下载 PDF</button>
+          <button class="btn-export" @click="exportFormat('pdf')">导出 PDF</button>
         </div>
       </div>
     </div>
@@ -67,8 +77,6 @@ import { api } from '@/services/api'
 import ResumeConfig from './ResumeConfig.vue'
 import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
 import '@/components/resume/resume-theme.css'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 
 const props = defineProps({
   reportId: { type: String, required: true },
@@ -84,8 +92,14 @@ const emit = defineEmits(['save-changes', 'update-config', 'changes-updated'])
 const resumeText = ref(props.initialText)
 const renderRef = ref(null)
 
+const templates = [
+  { key: 'professional', label: '专业型' },
+  { key: 'modern', label: '现代型' },
+  { key: 'minimal', label: '简洁型' }
+]
+
 const changes = ref([...props.savedChanges])
-const config = ref({ projectCount: 'all', projectSort: 'relevance', ...props.savedConfig })
+const config = ref({ projectCount: 'all', projectSort: 'relevance', templateName: 'professional', ...props.savedConfig })
 
 const projects = computed(() => props.profile?.projects || [])
 const jdKeywords = computed(() => [...new Set((props.suggestions || []).map(s => s.section))])
@@ -184,25 +198,28 @@ async function openPreview() {
   if (w) { w.document.write(html); w.document.close() }
 }
 
-// --- 导出：从 Vue 组件渲染 DOM 提取 HTML ---
+// --- 导出 ---
 function exportFormat(format) {
   const name = sanitizeFilename(props.reportId)
 
   if (format === 'md') {
-    downloadBlob(`${name}.md`, resumeText.value, 'text/markdown')
+    downloadBlob(`${name}.md`, resumeText.value, 'text/markdown;charset=utf-8')
     return
   }
 
-  // HTML / DOC / PDF 均从渲染后的 DOM 提取
   const bodyHTML = renderRef.value?.innerHTML || basicMDToHTML(resumeText.value)
   const html = buildResumePage(bodyHTML, config.value.templateName || 'professional')
 
   if (format === 'html') {
-    downloadBlob(`${name}.html`, html, 'text/html')
-  } else if (format === 'doc') {
-    exportAsDoc(html, name)
+    downloadBlob(`${name}.html`, html, 'text/html;charset=utf-8')
   } else if (format === 'pdf') {
-    exportPDF(html, name)
+    // 使用浏览器原生打印 → 另存为 PDF（自动分页、不截断）
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.write(html)
+    w.document.close()
+    // 等字体/图片加载完成后触发打印
+    w.onload = () => setTimeout(() => w.print(), 600)
   }
 }
 
@@ -219,103 +236,6 @@ function downloadBlob(filename, content, mime) {
   a.click()
   document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-}
-
-// --- PDF / DOC 生成（与旧版兼容）---
-async function exportPDF(htmlContent, filename) {
-  const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:auto;border:none;z-index:-1'
-  document.body.appendChild(iframe)
-
-  try {
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document
-    iframeDoc.open()
-    iframeDoc.write(htmlContent)
-    iframeDoc.close()
-
-    if (iframeDoc.fonts) await iframeDoc.fonts.ready
-    await new Promise(r => setTimeout(r, 500))
-
-    const pageElement = iframeDoc.querySelector('.resume-page') || iframeDoc.body
-
-    const canvas = await html2canvas(pageElement, {
-      scale: 2, useCORS: true, allowTaint: true,
-      backgroundColor: '#ffffff', logging: false
-    })
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pdfWidth
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-    const totalPages = Math.ceil(imgHeight / pdfHeight)
-    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight)
-
-    for (let page = 2; page <= totalPages; page++) {
-      pdf.addPage()
-      pdf.addImage(imgData, 'JPEG', 0, -(pdfHeight * (page - 1)), imgWidth, imgHeight)
-    }
-
-    pdf.save(`${filename}.pdf`)
-  } finally {
-    document.body.removeChild(iframe)
-  }
-}
-
-function exportAsDoc(htmlContent, filename) {
-  let bodyContent = htmlContent
-  try {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(htmlContent, 'text/html')
-    const styles = Array.from(doc.querySelectorAll('style')).map(s => s.outerHTML).join('\n')
-    bodyContent = styles + '\n' + (doc.body?.innerHTML || '')
-  } catch {
-    bodyContent = htmlContent.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '')
-  }
-
-  const docHtml = `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns:v="urn:schemas-microsoft-com:vml"
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="ProgId" content="Word.Document">
-<meta name="Generator" content="Microsoft Word 15">
-<!--[if gte mso 9]><xml>
-<w:WordDocument>
-<w:View>Print</w:View>
-<w:Zoom>100</w:Zoom>
-<w:DoNotOptimizeForBrowser/>
-</w:WordDocument>
-</xml><![endif]-->
-<style>
-@page { size: A4; margin: 2cm 2.5cm 2cm 2.5cm; mso-header-margin: 1.5cm; mso-footer-margin: 1.25cm; mso-page-orientation: portrait; }
-@page Section1 { }
-div.Section1 { page: Section1; }
-body { font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; line-height: 1.8; color: #1A1A2E; mso-line-height-rule: exactly; }
-h2 { font-family: 'Noto Serif SC', 'SimSun', serif; font-size: 18px; font-weight: bold; color: #1A1A2E; border-bottom: 2px solid #F4D758; padding-bottom: 6px; margin-top: 24px; margin-bottom: 8px; }
-.resume-section-title { font-family: 'Noto Serif SC', 'SimSun', serif; font-size: 18px; font-weight: bold; color: #1A1A2E; border-bottom: 2px solid #F4D758; padding-bottom: 6px; margin-top: 24px; margin-bottom: 8px; }
-h3,.resume-card-title { font-family: 'Noto Serif SC', 'SimSun', serif; font-size: 15px; font-weight: bold; color: #1A1A2E; margin-top: 18px; margin-bottom: 6px; }
-p,.resume-card-meta,.resume-card-subtitle { margin: 6px 0; color: #4A4A5A; mso-line-height-rule: exactly; }
-strong { color: #1A1A2E; }
-ul,.resume-highlights { padding-left: 24px; margin: 6px 0; }
-li { margin-bottom: 4px; color: #4A4A5A; }
-blockquote,.resume-summary { margin: 10px 0; padding: 10px 16px; background: rgba(43,127,216,.04); border-left: 3px solid #2B7FD8; font-style: italic; color: #4A4A5A; }
-.resume-tag { display: inline-block; padding: 2px 10px; font-size: 12px; color: #2B7FD8; background: rgba(43,127,216,.07); border-radius: 12px; }
-</style>
-</head>
-<body>
-<div class="Section1">
-${bodyContent}
-</div>
-</body>
-</html>`
-
-  downloadBlob(`${filename}.doc`, docHtml, 'application/msword')
 }
 
 // --- MD 生成（保持向后兼容：textarea 编辑器仍用 MD 格式）---
@@ -596,6 +516,16 @@ defineExpose({ applySuggestion, undoLast, undoSuggestion, applyToProject })
 }
 
 .btn-full { width: 100%; }
+
+/* 模板选择器 */
+.template-picker { display: flex; gap: 6px; margin-bottom: var(--space-sm); }
+.tpl-btn {
+  flex: 1; padding: 6px 0; font-size: var(--text-xs); font-weight: 500;
+  color: var(--color-text-muted); background: var(--color-bg); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body); transition: all .15s;
+}
+.tpl-btn:hover { border-color: var(--blue); color: var(--blue); }
+.tpl-btn.active { background: var(--color-primary-bg); border-color: var(--blue); color: var(--blue); font-weight: 600; }
 
 .export-btns {
   display: flex;
