@@ -110,34 +110,36 @@ const routes = {
     return { exists, processed, size: exists ? fs.statSync(p).size : 0 }
   },
 
-  // 自动处理收件箱：异步调用 Claude CLI，捕获进度输出，前端轮询展示
+  // 自动处理收件箱：异步调用 Claude CLI，全量日志 + 进度标记
   'POST /api/inbox/process': () => {
     const resumePath = path.join(ROOT, 'inbox', 'resume.txt')
     if (!fs.existsSync(resumePath)) return { ok: false, error: '收件箱为空' }
 
-    const lockFile = path.join(ROOT, 'inbox', '.processing')
-    if (fs.existsSync(lockFile)) return { ok: true, status: 'already-running' }
-
-    fs.writeFileSync(lockFile, new Date().toISOString(), 'utf-8')
-
+    // 检查是否已有活跃进程（.progress.json 的 startedAt 在 5 分钟内且未完成）
+    const progressFile = path.join(ROOT, 'inbox', '.progress.json')
     const processed = path.join(ROOT, 'inbox', '.processed')
+    const logFile = path.join(ROOT, 'inbox', '.log.txt')
+
+    if (fs.existsSync(progressFile)) {
+      const prev = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+      if (prev.status === 'running') {
+        const age = Date.now() - new Date(prev.startedAt).getTime()
+        if (age < 300000 && !fs.existsSync(processed)) return { ok: true, status: 'already-running' }
+      }
+    }
+
+    // 清理旧状态
     if (fs.existsSync(processed)) fs.unlinkSync(processed)
 
-    // 初始化进度文件
-    const progressFile = path.join(ROOT, 'inbox', '.progress.json')
-    fs.writeFileSync(progressFile, JSON.stringify({ steps: [], current: '正在启动 AI 解析引擎...', startedAt: new Date().toISOString() }))
+    // 初始化进度 + 日志
+    const initProgress = { status: 'running', steps: [], current: '正在启动 AI 解析引擎…', startedAt: new Date().toISOString() }
+    fs.writeFileSync(progressFile, JSON.stringify(initProgress))
+    fs.writeFileSync(logFile, '=== 职镜导入日志 ' + new Date().toISOString() + ' ===\n\n')
 
     const prompt = [
-      '用职镜导入收件箱。在处理的每个步骤完成后，输出一行进度标记：',
-      '[STEP] <步骤名称>',
-      '例如：',
-      '[STEP] 基本信息已提取',
-      '[STEP] 技能分析完成 (15项)',
-      '[STEP] 工作经历解析完成 (3段)',
-      '[STEP] 项目经历解析完成',
-      '[STEP] 教育背景解析完成',
-      '[STEP] 档案已保存',
-      '最后输出 DONE'
+      '用职镜导入收件箱。在处理每个步骤时输出进度标记 [STEP] 步骤描述。',
+      '例如：[STEP] 基本信息已提取、[STEP] 技能分析完成 (15项)、[STEP] 档案已保存。',
+      '最后输出 DONE。'
     ].join('\n')
 
     const tmpFile = path.join(os.tmpdir(), `jobmirror-import-${Date.now()}.txt`)
@@ -151,8 +153,12 @@ const routes = {
 
     let output = ''
     child.stdout.on('data', (data) => {
-      output += data.toString()
-      // 解析 [STEP] 行并写入进度文件
+      const chunk = data.toString()
+      output += chunk
+      // 追加到日志文件
+      try { fs.appendFileSync(logFile, chunk, 'utf-8') } catch {}
+
+      // 解析 [STEP] 并更新进度
       const steps = []
       const lines = output.split('\n')
       for (const line of lines) {
@@ -160,25 +166,29 @@ const routes = {
         if (m) steps.push({ text: m[1].trim(), time: new Date().toISOString() })
       }
       if (steps.length > 0) {
-        const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
-        progress.steps = steps
-        progress.current = steps[steps.length - 1].text
-        fs.writeFileSync(progressFile, JSON.stringify(progress))
+        try {
+          const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+          progress.steps = steps
+          progress.current = steps[steps.length - 1].text
+          fs.writeFileSync(progressFile, JSON.stringify(progress))
+        } catch {}
       }
     })
 
-    child.on('close', () => {
-      // 清理锁文件和临时文件
-      try { fs.unlinkSync(lockFile) } catch {}
+    child.on('close', (code) => {
+      try { fs.appendFileSync(logFile, '\n=== 进程退出，code=' + code + ' ===\n', 'utf-8') } catch {}
       try { fs.unlinkSync(tmpFile) } catch {}
-      // 更新进度为完成或错误
-      const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
-      progress.current = fs.existsSync(processed) ? '导入完成' : '导入未完成，请重试'
-      fs.writeFileSync(progressFile, JSON.stringify(progress))
+      try {
+        const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        progress.status = fs.existsSync(processed) ? 'done' : 'error'
+        progress.current = fs.existsSync(processed) ? '导入完成' : ('导入失败 (exit=' + code + ')，请查看日志')
+        progress.exitCode = code
+        fs.writeFileSync(progressFile, JSON.stringify(progress))
+      } catch {}
     })
 
-    child.on('error', () => {
-      try { fs.unlinkSync(lockFile) } catch {}
+    child.on('error', (err) => {
+      try { fs.appendFileSync(logFile, '\n=== 进程错误: ' + err.message + ' ===\n', 'utf-8') } catch {}
       try { fs.unlinkSync(tmpFile) } catch {}
     })
 
@@ -188,7 +198,21 @@ const routes = {
   // 导入进度查询
   'GET /api/inbox/progress': () => {
     const p = path.join(ROOT, 'inbox', '.progress.json')
-    return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : { steps: [], current: '空闲' }
+    if (!fs.existsSync(p)) return { status: 'idle', steps: [], current: '空闲' }
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'))
+    // 如果进程似乎卡住了（超过 5 分钟还在 running），标记超时
+    if (data.status === 'running' && Date.now() - new Date(data.startedAt).getTime() > 300000) {
+      data.status = 'timeout'
+      data.current = '处理超时，请重新上传'
+    }
+    return data
+  },
+
+  // 导入日志查询（调试用）
+  'GET /api/inbox/log': () => {
+    const p = path.join(ROOT, 'inbox', '.log.txt')
+    if (!fs.existsSync(p)) return { text: '(暂无日志)' }
+    return { text: fs.readFileSync(p, 'utf-8').slice(-8000) }
   },
 
   // 导入状态持久化（跨页面刷新保留等待态）

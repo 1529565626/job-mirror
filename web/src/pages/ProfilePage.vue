@@ -54,7 +54,7 @@
             <div class="spinner"></div>
             <p class="drop-title">AI 正在解析简历</p>
           </div>
-          <p class="drop-current-step">{{ progress.current }}</p>
+          <p class="drop-current-step">{{ progress.current || '正在连接…' }}</p>
           <!-- 进度条 -->
           <div class="progress-bar-wrap">
             <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
@@ -62,8 +62,8 @@
           <!-- 步骤列表 -->
           <div class="progress-steps">
             <div
-              v-for="(s, i) in allSteps"
-              :key="i"
+              v-for="s in allSteps"
+              :key="s.label"
               class="progress-step"
               :class="{ 'step-done': s.done, 'step-active': s.active }"
             >
@@ -72,6 +72,16 @@
               <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
             </div>
           </div>
+
+          <!-- 日志面板 -->
+          <details class="log-panel" @toggle="onLogToggle">
+            <summary class="log-toggle">
+              <span>查看执行日志</span>
+              <span class="log-status">{{ logText ? logText.split('\n').length + ' 行' : '加载中…' }}</span>
+            </summary>
+            <pre class="log-content">{{ logText || '(加载中…)' }}</pre>
+          </details>
+
           <p class="drop-hint">
             <span class="pulse-dot"></span>
             首次解析约需 30-60 秒{{ '.'.repeat(waitingDots) }}
@@ -363,38 +373,39 @@ function resetUpload() {
 
 // === 轮询收件箱状态 ===
 // 进度追踪
-const progress = ref({ steps: [], current: '' })
+const progress = ref({ status: 'idle', steps: [], current: '' })
+const logText = ref('')
 const milestoneLabels = [
   { key: '基本信息', label: '基本信息' },
   { key: '技能', label: '技能分析' },
-  { key: '经历', label: '工作经历' },
-  { key: '项目', label: '项目经历' },
-  { key: '教育', label: '教育背景' },
-  { key: '保存', label: '保存档案' }
+  { key: '工作经历', label: '工作经历' },
+  { key: '项目经历', label: '项目经历' },
+  { key: '教育背景', label: '教育背景' },
+  { key: '档案', label: '保存档案' }
 ]
 
-const allSteps = computed(() =>
-  milestoneLabels.map(m => {
+const allSteps = computed(() => {
+  let reachedUndone = false
+  return milestoneLabels.map(m => {
     const found = progress.value.steps.find(s => s.text.includes(m.key))
     const detailMatch = found ? found.text.match(/\((.+)\)/) : null
-    return {
-      label: m.label,
-      done: !!found,
-      active: !found && progress.value.steps.length > 0 && milestoneLabels.findIndex(l => l.key === m.key) === (progress.value.steps.length >= milestoneLabels.length ? milestoneLabels.length : progress.value.steps.length),
-      detail: detailMatch ? detailMatch[1] : ''
-    }
+    const done = !!found
+    // 第一个未完成的步骤标记为 active
+    const active = !done && !reachedUndone && progress.value.steps.length > 0 && (reachedUndone = true)
+    return { label: m.label, done, active, detail: detailMatch ? detailMatch[1] : '' }
   })
-)
+})
 
 const progressPercent = computed(() => {
   const done = progress.value.steps.length
-  return Math.min(100, Math.round((done / milestoneLabels.length) * 100))
+  return Math.min(100, Math.max(5, Math.round((done / milestoneLabels.length) * 100)))
 })
 
 const pollTimer = ref(null)
 const waitingDots = ref(0)
 let dotsTimer = null
 let progressPollTimer = null
+let logPollTimer = null
 
 function startPolling(isAuto = false) {
   if (!isAuto) {
@@ -419,7 +430,7 @@ function startPolling(isAuto = false) {
   check()
   pollTimer.value = setInterval(check, 3000)
 
-  // 自动模式额外轮询进度
+  // 自动模式额外轮询进度 + 日志
   if (isAuto) {
     const pollProgress = async () => {
       try {
@@ -429,6 +440,26 @@ function startPolling(isAuto = false) {
     }
     pollProgress()
     progressPollTimer = setInterval(pollProgress, 1500)
+
+    // 日志延迟加载（仅当用户展开日志面板时）
+    logPollTimer = setInterval(async () => {
+      if (logText.value === '(加载中…)' || (typeof logText.value === 'string' && logText.value.length > 0 && logText.value !== '(暂无日志)')) {
+        try {
+          const res = await api.get('/api/inbox/log')
+          if (res && res.text) logText.value = res.text
+        } catch {}
+      }
+    }, 3000)
+  }
+}
+
+function onLogToggle(e) {
+  // 展开时立即加载日志
+  if (e.target.open && (!logText.value || logText.value === '(暂无日志)')) {
+    logText.value = '(加载中…)'
+    api.get('/api/inbox/log').then(res => {
+      if (res && res.text) logText.value = res.text
+    }).catch(() => { logText.value = '(加载失败)' })
   }
 }
 
@@ -454,6 +485,10 @@ function stopPolling() {
   if (progressPollTimer) {
     clearInterval(progressPollTimer)
     progressPollTimer = null
+  }
+  if (logPollTimer) {
+    clearInterval(logPollTimer)
+    logPollTimer = null
   }
   stopDots()
 }
@@ -1130,6 +1165,50 @@ onUnmounted(() => {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-weight: 500;
+}
+
+/* 日志面板 */
+.log-panel {
+  max-width: 420px;
+  margin: var(--space-md) auto 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.log-toggle {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.log-toggle:hover { background: var(--color-primary-bg); }
+
+.log-status {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+}
+
+.log-content {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.65rem;
+  font-family: 'Consolas', 'Courier New', monospace;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: #1a1a2e;
+  color: #a0d0ff;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* 终端命令展示 */
