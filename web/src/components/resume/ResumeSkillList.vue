@@ -9,6 +9,7 @@
           <span class="skill-name">{{ s.name }}</span>
           <span class="skill-tag" :class="'proficiency-' + s.proficiency">{{ proficiencyLabel(s.proficiency) }}</span>
           <span v-if="s.yearsUsed" class="skill-years">{{ s.yearsUsed }}y</span>
+          <span v-if="s.note" class="skill-note">{{ s.note.slice(0, 80) }}{{ s.note.length > 80 ? '…' : '' }}</span>
         </span>
       </div>
     </div>

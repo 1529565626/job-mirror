@@ -163,6 +163,7 @@ body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size
 .proficiency-intermediate{background:#f4d75830;color:#8b7a10}
 .proficiency-novice{background:#e8e8e8;color:#888}
 .skill-years{font-size:.7rem;color:${t.text3}}
+.skill-note{display:block;font-size:.65rem;color:${t.text3};margin-top:2px;line-height:1.4}
 /* 现代型侧栏布局 */
 .resume-modern{display:flex;padding:0;max-width:820px;overflow:hidden}
 .modern-sidebar{width:32%;background:#1a2332;color:#e0e6ed;padding:2.2rem 1.5rem;flex-shrink:0}

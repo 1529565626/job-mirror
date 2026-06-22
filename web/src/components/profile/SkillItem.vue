@@ -26,12 +26,16 @@
       </div>
       <span class="skill-proficiency-tag" :class="'prof-' + profClass(skill.proficiency)">{{ profLabel(skill.proficiency) }}</span>
       <span class="skill-card__tag">{{ skill.category }}</span>
+      <p v-if="skill.note" class="skill-note" :class="{ expanded: skillNoteExpanded }" @click="skillNoteExpanded = !skillNoteExpanded">
+        {{ skillNoteExpanded ? skill.note : (skill.note.slice(0, 60) + (skill.note.length > 60 ? '…' : '')) }}
+        <span v-if="skill.note.length > 60" class="note-toggle">{{ skillNoteExpanded ? ' 收起' : ' 展开' }}</span>
+      </p>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 
 const props = defineProps({
   skill: { type: Object, required: true },
@@ -39,6 +43,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update', 'delete'])
+
+const skillNoteExpanded = ref(false)
 
 const categories = ['编程语言', '框架/工具', '数据分析', '产品/设计', '运营/市场', '管理/软技能', '语言', '其他']
 
@@ -137,4 +143,8 @@ watch([() => local.name, () => local.category, () => local.yearsUsed, localLevel
 .skill-select { font-size: 0.7rem; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 3px 4px; font-family: var(--font-body); }
 .btn-del-skill { font-size: 1rem; color: var(--red); background: none; border: none; cursor: pointer; padding: 0 4px; line-height: 1; }
 .btn-del-skill:hover { opacity: 0.7; }
+.skill-note { font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.5; margin-top: 4px; cursor: pointer; transition: color .15s; }
+.skill-note:hover { color: var(--color-text-secondary); }
+.skill-note.expanded { color: var(--color-text-secondary); }
+.note-toggle { color: var(--blue); font-weight: 500; font-size: 0.65rem; }
 </style>

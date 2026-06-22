@@ -125,6 +125,20 @@
   color: var(--ink);
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+}
+.skill-years {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+.skill-note {
+  display: block;
+  width: 100%;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
 }
 
 /* === 高亮要点列表 === */
