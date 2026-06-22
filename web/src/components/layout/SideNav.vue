@@ -37,6 +37,7 @@ let timer = null
 const navItems = [
   { path: '/', label: '个人档案', icon: '◆' },
   { path: '/jobs', label: '岗位管理', icon: '☰' },
+  { path: '/compare', label: '岗位对比', icon: '⇔' },
   { path: '/reports', label: '分析报告', icon: '★' }
 ]
 

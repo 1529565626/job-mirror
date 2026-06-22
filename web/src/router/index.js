@@ -22,6 +22,12 @@ const routes = [
     meta: { title: '岗位详情' }
   },
   {
+    path: '/compare',
+    name: 'compare',
+    component: () => import('@/pages/ComparePage.vue'),
+    meta: { title: '岗位对比' }
+  },
+  {
     path: '/reports',
     name: 'reports',
     component: () => import('@/pages/ReportsPage.vue'),
