@@ -163,7 +163,51 @@ body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size
 .proficiency-intermediate{background:#f4d75830;color:#8b7a10}
 .proficiency-novice{background:#e8e8e8;color:#888}
 .skill-years{font-size:.7rem;color:${t.text3}}
-@media print{body{background:#fff}.resume-page{box-shadow:none;max-width:100%;margin:0;padding:1.5rem;border-radius:0}.resume-tag{background:none;border:1px solid #ddd}}
+/* 现代型侧栏布局 */
+.resume-modern{display:flex;padding:0;max-width:820px;overflow:hidden}
+.modern-sidebar{width:32%;background:#1a2332;color:#e0e6ed;padding:2.2rem 1.5rem;flex-shrink:0}
+.modern-sidebar-name{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:.2rem}
+.modern-sidebar-role{font-size:.9rem;color:#8ab4f8;margin-bottom:.8rem}
+.modern-sidebar-info{font-size:.75rem;color:#9aa9b7;margin-bottom:1.4rem;line-height:1.7}
+.modern-section-title{font-size:.75rem;font-weight:700;color:#8ab4f8;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .5rem;padding-bottom:.3rem;border-bottom:1px solid rgba(255,255,255,.15)}
+.modern-skill-group{margin-bottom:.6rem}
+.modern-skill-cat{font-size:.65rem;color:#6a7d8e;margin-bottom:.15rem;text-transform:uppercase;letter-spacing:.05em}
+.modern-skill-tags{display:flex;flex-wrap:wrap;gap:4px}
+.modern-skill-tag{font-size:.7rem;color:#bcc8d4;background:rgba(255,255,255,.07);padding:2px 8px;border-radius:8px}
+.modern-edu-item{margin-bottom:.4rem}
+.modern-edu-school{font-size:.8rem;color:#d0d8e0;font-weight:600}
+.modern-edu-meta{font-size:.7rem;color:#8a9aa8}
+.modern-main{flex:1;padding:2.2rem 2rem;background:#fff}
+.modern-summary{font-size:.85rem;color:#4a5568;line-height:1.7;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:1px solid #e8ecf1}
+.modern-card{margin-bottom:1rem}
+.modern-card-header{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin-bottom:.2rem}
+.modern-card-role{font-size:.95rem;font-weight:700;color:#1a1a2e}
+.modern-card-company{font-size:.85rem;color:#2B7FD8}
+.modern-card-date{font-size:.75rem;color:#888;margin-left:auto}
+.modern-card-desc{font-size:.8rem;color:#555;margin-bottom:.3rem;line-height:1.6}
+.modern-highlights{padding-left:1.3em;margin:.2rem 0 0;list-style:disc}
+.modern-highlights li{font-size:.82rem;color:#4a5568;margin-bottom:2px;line-height:1.6}
+.modern-tech-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:.35rem}
+.modern-tech-tag{font-size:.65rem;color:#2B7FD8;background:rgba(43,127,216,.07);padding:1px 8px;border-radius:10px}
+/* 简洁型 */
+.resume-minimal{padding:3.5rem 3rem;box-shadow:none;border-radius:0;max-width:700px}
+.minimal-header{margin-bottom:1.8rem}
+.minimal-name{font-size:2rem;font-weight:300;color:#111;margin:0 0 .3rem;letter-spacing:.04em}
+.minimal-meta{font-size:.8rem;color:#777}
+.minimal-sep{margin:0 .6rem;color:#ccc}
+.minimal-summary{font-size:.85rem;color:#555;line-height:1.8;margin-bottom:1.8rem}
+.minimal-section-title{font-size:.75rem;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:.12em;margin:1.4rem 0 .5rem;padding-bottom:.25rem;border-bottom:1px solid #e0e0e0}
+.minimal-card{margin-bottom:.8rem}
+.minimal-card-row{font-size:.9rem;color:#333;margin-bottom:.15rem;display:flex;align-items:baseline;gap:.3rem;flex-wrap:wrap}
+.minimal-dot{color:#ccc;margin:0 .15rem}
+.minimal-date{font-size:.75rem;color:#aaa;margin-left:auto}
+.minimal-hl{padding-left:1.2em;margin:.1rem 0 0;list-style:disc}
+.minimal-hl li{font-size:.82rem;color:#555;margin-bottom:2px;line-height:1.6}
+.minimal-skills{display:flex;flex-wrap:wrap;gap:4px 16px}
+.minimal-skill-item{font-size:.85rem;color:#333}
+.minimal-skill-yr{font-size:.7rem;color:#aaa}
+.minimal-edu-line{font-size:.85rem;color:#555;margin-bottom:.15rem}
+@media print{body{background:#fff}.resume-page{box-shadow:none;max-width:100%;margin:0;padding:1.5rem;border-radius:0}.resume-tag{background:none;border:1px solid #ddd}.resume-modern{display:flex}.modern-sidebar{background:#1a2332!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
 </head>
 <body>${bodyHTML}</body>
