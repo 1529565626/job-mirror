@@ -91,6 +91,68 @@ const routes = {
   },
   'DELETE /api/jds/:id': (_, id) => { fs.unlinkSync(path.join(ROOT, 'jds', id + '.json')); return { ok: true } },
 
+  // JD 自动分析（异步调用 Claude CLI）
+  'POST /api/jds/:id/process': (_, id) => {
+    const jdFile = path.join(ROOT, 'jds', id + '.json')
+    if (!fs.existsSync(jdFile)) return { ok: false, error: 'JD 不存在' }
+
+    const progressFile = path.join(ROOT, 'jds', id + '.progress.json')
+    const logFile = path.join(ROOT, 'jds', id + '.log.txt')
+
+    // 检查是否已在运行
+    if (fs.existsSync(progressFile)) {
+      const prev = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+      if (prev.status === 'running' && Date.now() - new Date(prev.startedAt).getTime() < 300000) {
+        return { ok: true, status: 'already-running' }
+      }
+    }
+
+    // 初始化进度
+    fs.writeFileSync(progressFile, JSON.stringify({ status: 'running', steps: [], current: '正在启动分析引擎…', startedAt: new Date().toISOString() }))
+    fs.writeFileSync(logFile, '=== JD 分析日志 ' + new Date().toISOString() + ' ===\n\n')
+
+    const prompt = `用职镜分析岗位: ${id}。每完成一个步骤将进度写入 ${progressFile.replace(/\\/g, '\\\\')}（在 steps 数组追加 { text: "步骤描述" } 并更新 current 字段）。最后输出 DONE。`
+
+    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && claude -p "${prompt.replace(/"/g, '\\"')}" --output-format text 2>&1`], {
+      cwd: PROJECT_DIR,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true
+    })
+
+    child.stdout.on('data', (d) => { try { fs.appendFileSync(logFile, d.toString(), 'utf-8') } catch {} })
+
+    child.on('close', (code) => {
+      try { fs.appendFileSync(logFile, '\n=== 进程退出，code=' + code + ' ===\n', 'utf-8') } catch {}
+      try {
+        const jd = JSON.parse(fs.readFileSync(jdFile, 'utf-8'))
+        const done = jd.parsed && jd.reportIds?.length > 0
+        const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        p.status = done ? 'done' : 'error'
+        p.current = done ? '分析完成' : ('分析失败 (exit=' + code + ')，请查看日志')
+        p.reportId = done ? jd.reportIds[jd.reportIds.length - 1] : null
+        fs.writeFileSync(progressFile, JSON.stringify(p))
+      } catch {}
+    })
+
+    child.on('error', (err) => {
+      try { fs.appendFileSync(logFile, '\n=== 进程错误: ' + err.message + ' ===\n', 'utf-8') } catch {}
+    })
+
+    return { ok: true, status: 'started' }
+  },
+
+  'GET /api/jds/:id/progress': (_, id) => {
+    const p = path.join(ROOT, 'jds', id + '.progress.json')
+    if (!fs.existsSync(p)) return { status: 'idle', steps: [], current: '空闲' }
+    return JSON.parse(fs.readFileSync(p, 'utf-8'))
+  },
+
+  'GET /api/jds/:id/log': (_, id) => {
+    const p = path.join(ROOT, 'jds', id + '.log.txt')
+    if (!fs.existsSync(p)) return { text: '(暂无日志)' }
+    return { text: fs.readFileSync(p, 'utf-8').slice(-8000) }
+  },
+
   // 报告
   'GET /api/reports': () => list(path.join(ROOT, 'reports')),
   'GET /api/reports/:id': (_, id) => read(path.join(ROOT, 'reports', id + '.json')) || null,

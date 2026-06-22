@@ -66,19 +66,32 @@
             </div>
           </template>
 
-          <!-- 分析等待态 -->
+          <!-- 分析进行中 -->
           <template v-else>
             <div class="analyzing-state">
               <div class="spinner"></div>
-              <p class="analyzing-title">正在等待 Claude Code 分析</p>
-              <p class="analyzing-desc">岗位「{{ analyzingTitle }}」已保存，请在终端中执行：</p>
-              <div class="terminal-cmd">
-                <code>用职镜分析岗位: {{ analyzingId }}</code>
-                <button class="btn-copy" @click="copyAnalysisCmd">复制</button>
+              <p class="analyzing-title">AI 正在分析岗位</p>
+              <p class="analyzing-current">{{ progress.current || '正在连接…' }}</p>
+
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
               </div>
+
+              <div class="progress-steps">
+                <div v-for="s in analysisSteps" :key="s.label" class="progress-step" :class="{ 'step-done': s.done }">
+                  <span class="step-icon">{{ s.done ? '✓' : s.active ? '◉' : '○' }}</span>
+                  <span class="step-label">{{ s.label }}</span>
+                </div>
+              </div>
+
+              <details class="log-panel" @toggle="onLogToggle">
+                <summary class="log-toggle"><span>查看执行日志</span><span class="log-status">{{ logLines }} 行</span></summary>
+                <pre class="log-content">{{ logText || '(加载中…)' }}</pre>
+              </details>
+
               <p class="analyzing-wait">
                 <span class="pulse-dot"></span>
-                等待分析结果中{{ '.'.repeat(waitingDots) }}
+                约需 60-90 秒{{ '.'.repeat(waitingDots) }}
               </p>
               <button class="btn-dismiss" @click="cancelAnalysis">取消</button>
             </div>
@@ -116,9 +129,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useJDsStore } from '@/stores/jds'
+import { api } from '@/services/api'
 import JDList from '@/components/jd/JDList.vue'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -141,13 +155,31 @@ const analysisDoneId = ref(null)
 const analysisDoneTitle = ref('')
 const waitingDots = ref(0)
 
+// 进度追踪
+const progress = ref({ status: 'idle', steps: [], current: '' })
+const logText = ref('')
+const logLines = computed(() => logText.value ? logText.value.split('\n').length : 0)
+
+const milestoneLabels = ['解析JD', '技能对标', '计算匹配度', '简历建议', '面试准备', '生成报告']
+const analysisSteps = computed(() => {
+  return milestoneLabels.map(label => ({
+    label,
+    done: progress.value.steps.some(s => s.text.includes(label)),
+    active: false
+  }))
+})
+
+const progressPercent = computed(() => {
+  const done = progress.value.steps.length
+  return Math.min(100, Math.max(5, Math.round((done / milestoneLabels.length) * 100)))
+})
+
 let dotsTimer = null
 let pollTimer = null
+let progressTimer = null
 
 function startDots() {
-  dotsTimer = setInterval(() => {
-    waitingDots.value = (waitingDots.value % 3) + 1
-  }, 600)
+  dotsTimer = setInterval(() => { waitingDots.value = (waitingDots.value % 3) + 1 }, 600)
 }
 
 function stopDots() {
@@ -157,86 +189,63 @@ function stopDots() {
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
 }
 
-// 开始分析
+// 开始分析（保存 JD + 自动触发 Claude 分析）
 async function handleAnalyze() {
   if (!canSubmit.value || isSaving.value) return
-
-  isSaving.value = true
-  formError.value = ''
+  isSaving.value = true; formError.value = ''
 
   const id = await store.create({ title: form.title, rawText: form.rawText })
   isSaving.value = false
 
-  if (id) {
-    analyzingId.value = id
-    analyzingTitle.value = form.title
-    analysisDone.value = false
-    startPollingJD(id)
-  } else {
-    formError.value = store.error || '保存失败，请检查文件服务是否已启动'
-  }
-}
+  if (!id) { formError.value = store.error || '保存失败'; return }
 
-// 轮询 JD 分析结果
-function startPollingJD(jdId) {
-  store.saveAnalysisState({
-    status: 'waiting',
-    jdId,
-    title: analyzingTitle.value,
-    startedAt: new Date().toISOString()
-  })
-
+  analyzingId.value = id; analyzingTitle.value = form.title; analysisDone.value = false
   startDots()
+  store.saveAnalysisState({ status: 'waiting', jdId: id, title: form.title, startedAt: new Date().toISOString() })
 
+  // 自动触发后台分析
+  try {
+    const result = await api.post(`/api/jds/${encodeURIComponent(id)}/process`)
+    if (!result.ok) { formError.value = result.error || '启动分析失败'; return }
+  } catch (e) { formError.value = '启动分析失败: ' + e.message; return }
+
+  // 轮询进度和结果
   const check = async () => {
     try {
-      const jd = await store.fetchOne(jdId)
-      if (jd && jd.parsed) {
-        // 分析完成
-        stopPolling()
-        stopDots()
-        store.clearAnalysisState()
+      const res = await api.get(`/api/jds/${encodeURIComponent(id)}/progress`)
+      if (res) progress.value = res
+      if (res.status === 'done') {
+        stopPolling(); stopDots(); store.clearAnalysisState()
         await store.fetchList()
-        analysisDoneId.value = jdId
-        analysisDoneTitle.value = jd.parsed.title || analyzingTitle.value
-        analysisDone.value = true
-        analyzingId.value = null
+        analysisDoneId.value = id; analysisDoneTitle.value = form.title; analysisDone.value = true; analyzingId.value = null
       }
-    } catch { /* keep polling */ }
+    } catch {}
   }
-
   check()
-  pollTimer = setInterval(check, 3000)
-}
+  pollTimer = setInterval(check, 2000)
 
-function cancelAnalysis() {
-  stopPolling()
-  stopDots()
-  store.clearAnalysisState()
-  analyzingId.value = null
-  analysisDone.value = false
-}
-
-function resetAnalysis() {
-  analysisDone.value = false
-  analysisDoneId.value = null
-  form.title = ''
-  form.rawText = ''
-  formError.value = ''
-}
-
-function copyAnalysisCmd() {
-  const cmd = `用职镜分析岗位: ${analyzingId.value}`
-  navigator.clipboard.writeText(cmd).then(() => {
-    const btn = document.querySelector('.btn-copy')
-    if (btn) {
-      btn.textContent = '已复制'
-      setTimeout(() => { btn.textContent = '复制' }, 1500)
+  // 日志轮询
+  progressTimer = setInterval(async () => {
+    if (logText.value === '(加载中…)' || (typeof logText.value === 'string' && logText.value.length >= 0)) {
+      try { const res = await api.get(`/api/jds/${encodeURIComponent(id)}/log`); if (res?.text) logText.value = res.text } catch {}
     }
-  }).catch(() => {})
+  }, 3000)
 }
+
+function onLogToggle(e) {
+  if (e.target.open && (!logText.value || logText.value === '(暂无日志)')) {
+    logText.value = '(加载中…)'
+    api.get(`/api/jds/${encodeURIComponent(analyzingId.value)}/log`).then(res => {
+      if (res?.text) logText.value = res.text
+    }).catch(() => { logText.value = '(加载失败)' })
+  }
+}
+
+function cancelAnalysis() { stopPolling(); stopDots(); store.clearAnalysisState(); analyzingId.value = null; analysisDone.value = false }
+function resetAnalysis() { analysisDone.value = false; analysisDoneId.value = null; form.title = ''; form.rawText = ''; formError.value = '' }
 
 function handleDelete(id) {
   store.remove(id)
@@ -416,11 +425,39 @@ onUnmounted(() => {
   margin-bottom: var(--space-md);
 }
 
+.analyzing-current {
+  font-size: var(--text-sm);
+  color: var(--blue);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
 .analyzing-wait {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-top: var(--space-md);
 }
+
+/* 进度条 */
+.progress-bar-wrap {
+  width: 100%; max-width: 360px; margin: 0 auto var(--space-md);
+  height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden;
+}
+.progress-bar-fill { height: 100%; background: var(--blue); border-radius: 2px; transition: width 0.6s ease; }
+
+/* 步骤列表 */
+.progress-steps { display: flex; flex-direction: column; gap: 2px; max-width: 360px; margin: 0 auto var(--space-md); }
+.progress-step { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-sm); color: var(--color-text-muted); padding: 2px var(--space-sm); border-radius: var(--radius-sm); }
+.step-done { color: var(--color-success); }
+.step-icon { font-size: var(--text-xs); width: 18px; text-align: center; flex-shrink: 0; }
+.step-label { flex: 1; }
+
+/* 日志面板 */
+.log-panel { max-width: 420px; margin: var(--space-md) auto 0; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
+.log-toggle { padding: var(--space-sm) var(--space-md); background: var(--color-surface); cursor: pointer; font-size: var(--text-xs); color: var(--color-text-muted); display: flex; justify-content: space-between; align-items: center; }
+.log-toggle:hover { background: var(--color-primary-bg); }
+.log-status { font-size: 0.65rem; color: var(--color-text-muted); font-family: monospace; }
+.log-content { margin: 0; padding: var(--space-sm) var(--space-md); font-size: 0.6rem; font-family: monospace; line-height: 1.5; background: #1a1a2e; color: #a0d0ff; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
 
 .terminal-cmd {
   display: inline-flex;
