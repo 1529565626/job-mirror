@@ -160,7 +160,7 @@ const progress = ref({ status: 'idle', steps: [], current: '' })
 const logText = ref('')
 const logLines = computed(() => logText.value ? logText.value.split('\n').length : 0)
 
-const milestoneLabels = ['解析JD', '技能对标', '计算匹配度', '简历建议', '面试准备', '生成报告']
+const milestoneLabels = ['解析JD', '技能对标', '计算匹配度', '生成报告']
 const analysisSteps = computed(() => {
   return milestoneLabels.map(label => ({
     label,
