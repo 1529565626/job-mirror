@@ -8,6 +8,31 @@ const { execSync, spawn } = require('child_process')
 const ROOT = path.join(os.homedir(), '.jobmirror')
 const PROJECT_DIR = __dirname
 const PORT = 3099
+
+// 扫描运行中的任务
+function scanTasks() {
+  const tasks = []
+  // 简历导入
+  const ip = path.join(ROOT, 'inbox', '.progress.json')
+  if (fs.existsSync(ip)) {
+    const d = JSON.parse(fs.readFileSync(ip, 'utf-8'))
+    if (d.status === 'running') tasks.push({ type: '导入简历', label: '简历解析', status: d.status, current: d.current, startedAt: d.startedAt, steps: d.steps?.length || 0 })
+  }
+  // JD 分析
+  const jdDir = path.join(ROOT, 'jds')
+  if (fs.existsSync(jdDir)) {
+    for (const f of fs.readdirSync(jdDir)) {
+      if (f.endsWith('.progress.json')) {
+        const d = JSON.parse(fs.readFileSync(path.join(jdDir, f), 'utf-8'))
+        if (d.status === 'running') {
+          const jdId = f.replace('.progress.json', '')
+          tasks.push({ type: 'JD分析', label: jdId, status: d.status, current: d.current, startedAt: d.startedAt, steps: d.steps?.length || 0 })
+        }
+      }
+    }
+  }
+  return tasks
+}
 const ALLOW_ORIGIN = /^http:\/\/localhost:\d+$/
 
 // 确保数据目录存在
@@ -53,6 +78,9 @@ function rmDir(dir) {
 
 // 路由表
 const routes = {
+  // 运行中任务
+  'GET /api/tasks': () => scanTasks(),
+
   // 用户档案
   'GET /api/profile': () => read(path.join(ROOT, 'profile.json')) || {},
   'PUT /api/profile': (body) => { fs.writeFileSync(path.join(ROOT, 'profile.json'), JSON.stringify(body, null, 2)); return { ok: true } },
