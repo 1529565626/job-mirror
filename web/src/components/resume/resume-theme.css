@@ -1,0 +1,200 @@
+/* resume-theme.css — 简历专属设计令牌，继承 variables.css */
+
+/* === 简历页面尺寸 (A4) === */
+:root {
+  --resume-page-width: 780px;
+  --resume-page-padding: 3rem;
+  --resume-print-width: 210mm;
+
+  /* 简历专属间距 */
+  --resume-section-gap: 1.6rem;
+  --resume-item-gap: 1rem;
+  --resume-tag-gap: 6px;
+
+  /* 简历字号微调 */
+  --resume-name-size: 1.6rem;
+  --resume-section-title-size: 1.1rem;
+  --resume-item-title-size: 1rem;
+
+  /* 技能星级 */
+  --star-filled: var(--yellow);
+  --star-empty: #e0dcd0;
+}
+
+/* === 简历容器 === */
+.resume-page {
+  max-width: var(--resume-page-width);
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  padding: var(--resume-page-padding);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+/* === 简历区块标题 === */
+.resume-section-title {
+  font-family: var(--font-heading);
+  font-size: var(--resume-section-title-size);
+  font-weight: 700;
+  color: var(--ink);
+  margin: var(--resume-section-gap) 0 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--yellow);
+}
+
+.resume-section-title:first-child {
+  margin-top: 0;
+}
+
+/* === 简历卡片 === */
+.resume-card {
+  margin-bottom: var(--resume-item-gap);
+}
+
+.resume-card-title {
+  font-family: var(--font-heading);
+  font-size: var(--resume-item-title-size);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
+}
+
+.resume-card-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.resume-card-meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 0.35rem;
+}
+
+/* === 标签 === */
+.resume-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--resume-tag-gap);
+  margin: 0.35rem 0;
+}
+
+.resume-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: var(--text-xs);
+  color: var(--blue);
+  background: rgba(43, 127, 216, 0.07);
+  border-radius: 12px;
+}
+
+/* === 摘要引用块 === */
+.resume-summary {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 1rem;
+  background: rgba(43, 127, 216, 0.04);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+/* === 技能星级 === */
+.skill-stars {
+  display: inline-flex;
+  gap: 1px;
+  margin-left: 6px;
+}
+
+.skill-star {
+  font-size: 0.75rem;
+}
+
+.skill-star.filled { color: var(--star-filled); }
+.skill-star.empty  { color: var(--star-empty); }
+
+/* === 技能分类区块 === */
+.skill-category {
+  margin-bottom: 0.6rem;
+}
+
+.skill-category-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.2rem;
+}
+
+.skill-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.skill-item {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* === 高亮要点列表 === */
+.resume-highlights {
+  padding-left: 1.4em;
+  margin: 0.3rem 0 0;
+  list-style: disc;
+}
+
+.resume-highlights li {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: 3px;
+  line-height: 1.6;
+}
+
+/* === 基本信息网格 === */
+.resume-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 1.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.resume-info-item {
+  display: flex;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+}
+
+.resume-info-label {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.resume-info-value {
+  color: var(--ink);
+}
+
+/* === 打印样式 === */
+@media print {
+  body { background: #fff; }
+
+  .resume-page {
+    box-shadow: none;
+    max-width: 100%;
+    margin: 0;
+    padding: 1.5rem;
+    border-radius: 0;
+  }
+
+  .resume-tag {
+    background: none;
+    border: 1px solid #ddd;
+  }
+}

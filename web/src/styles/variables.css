@@ -1,0 +1,87 @@
+/* variables.css — Design-keai 可爱蜡笔风格设计令牌 */
+
+:root {
+  /* === 品牌三色 === */
+  --color-primary: #2B7FD8;
+  --color-primary-light: #5a9de0;
+  --color-primary-bg: rgba(43, 127, 216, 0.08);
+  --color-accent: #F4D758;
+  --color-accent-bg: rgba(244, 215, 88, 0.15);
+  --color-danger: #E84A5F;
+  --color-danger-bg: rgba(232, 74, 95, 0.08);
+  --color-success: #2d6a4f;
+  --color-success-bg: rgba(45, 106, 79, 0.08);
+
+  /* === 背景与表面 === */
+  --color-bg: #fefcf6;
+  --color-surface: #ffffff;
+  --color-border: rgba(26, 26, 26, 0.08);
+
+  /* === 文字 === */
+  --color-text: #1A1A2E;
+  --color-text-secondary: #4A4A5A;
+  --color-text-muted: #8A8A9A;
+
+  /* === 品牌比例色工具 === */
+  --blue: #2B7FD8;
+  --yellow: #F4D758;
+  --red: #E84A5F;
+  --cream: #fefcf6;
+  --ink: #1A1A2E;
+
+  /* === 间距 === */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* === 字号 === */
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.3rem;
+  --text-2xl: 1.6rem;
+  --text-3xl: 2rem;
+
+  /* === 字体 === */
+  --font-heading: 'Noto Serif SC', 'Huiwen Mincho', serif;
+  --font-body: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+
+  /* === 圆角 === */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* === 阴影 === */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  /* === 侧栏 === */
+  --sidebar-width: 220px;
+  --header-height: 56px;
+}
+
+/* 暗色主题（预留） */
+[data-theme="dark"] {
+  --color-bg: #151821;
+  --color-surface: #1e293b;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-primary-bg: rgba(43, 127, 216, 0.15);
+  --color-accent-bg: rgba(244, 215, 88, 0.1);
+  --color-danger-bg: rgba(232, 74, 95, 0.1);
+  --color-success-bg: rgba(45, 106, 79, 0.1);
+}
+
+/* === 匹配度颜色工具类 === */
+.score-high     { color: var(--color-success); }
+.score-medium   { color: var(--color-primary); }
+.score-low      { color: var(--color-accent); }
+.score-critical { color: var(--color-danger); }
