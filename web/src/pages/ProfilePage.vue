@@ -153,11 +153,11 @@
         <button class="update-hint__close" @click="showUpdateHint = false">&#10005;</button>
       </div>
 
-      <BasicInfo :basic="editData.basic" :edit-mode="editMode" @update:basic="v => editData.basic = v" />
-      <SkillList :skills="editData.skills" :edit-mode="editMode" @update:skills="v => editData.skills = v" />
-      <ExperienceList :experiences="editData.experiences" :edit-mode="editMode" @polish="onPolishRequest" @update:experiences="v => editData.experiences = v" />
-      <ProjectList :projects="editData.projects || []" :edit-mode="editMode" @polish="onPolishRequest" @update:projects="v => editData.projects = v" />
-      <EducationList :education="editData.education" :edit-mode="editMode" @update:education="v => editData.education = v" />
+      <BasicInfo :basic="displayData.basic" :edit-mode="editMode" @update:basic="v => editData.basic = v" />
+      <SkillList :skills="displayData.skills" :edit-mode="editMode" @update:skills="v => editData.skills = v" />
+      <ExperienceList :experiences="displayData.experiences" :edit-mode="editMode" @polish="onPolishRequest" @update:experiences="v => editData.experiences = v" />
+      <ProjectList :projects="displayData.projects || []" :edit-mode="editMode" @polish="onPolishRequest" @update:projects="v => editData.projects = v" />
+      <EducationList :education="displayData.education" :edit-mode="editMode" @update:education="v => editData.education = v" />
     </div>
 
     <!-- 清空确认弹窗 -->
@@ -262,6 +262,8 @@ const store = useProfileStore()
 // --- 编辑模式 ---
 const editMode = ref(false)
 const editData = ref({})
+
+const displayData = computed(() => editMode.value ? editData.value : (store.data || {}))
 
 function startEdit() {
   editData.value = JSON.parse(JSON.stringify(store.data || {}))
