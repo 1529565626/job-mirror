@@ -127,19 +127,22 @@ const routes = {
     const progressFile = path.join(ROOT, 'jds', id + '.progress.json')
     const logFile = path.join(ROOT, 'jds', id + '.log.txt')
 
-    // 检查是否已在运行
+    // 检查是否已在运行（5 分钟超时）
     if (fs.existsSync(progressFile)) {
-      const prev = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
-      if (prev.status === 'running' && Date.now() - new Date(prev.startedAt).getTime() < 300000) {
-        return { ok: true, status: 'already-running' }
-      }
+      try {
+        const prev = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        if (prev.status === 'running' && Date.now() - new Date(prev.startedAt).getTime() < 300000) {
+          return { ok: true, status: 'already-running' }
+        }
+      } catch { fs.unlinkSync(progressFile) }
     }
 
     // 初始化进度
     fs.writeFileSync(progressFile, JSON.stringify({ status: 'running', steps: [], current: '正在启动分析引擎…', startedAt: new Date().toISOString() }))
     fs.writeFileSync(logFile, '=== JD 分析日志 ' + new Date().toISOString() + ' ===\n\n')
 
-    const prompt = `用职镜分析岗位: ${id}。每完成一个步骤将进度写入 ${progressFile.replace(/\\/g, '\\\\')}（在 steps 数组追加 { text: "步骤描述" } 并更新 current 字段）。最后输出 DONE。`
+    // 简化 prompt，不传文件路径（避免中文路径和转义问题）
+    const prompt = `用职镜分析岗位: ${id}。在分析的每个关键步骤用 [STEP] 标记输出当前进度。完成后输出 DONE。`
 
     const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && claude -p "${prompt.replace(/"/g, '\\"')}" --output-format text 2>&1`], {
       cwd: PROJECT_DIR,
@@ -147,7 +150,25 @@ const routes = {
       windowsHide: true
     })
 
-    child.stdout.on('data', (d) => { try { fs.appendFileSync(logFile, d.toString(), 'utf-8') } catch {} })
+    let output = ''
+    child.stdout.on('data', (d) => {
+      const chunk = d.toString(); output += chunk
+      try { fs.appendFileSync(logFile, chunk, 'utf-8') } catch {}
+
+      // 从 stdout 解析 [STEP] 标记更新进度
+      const steps = []
+      for (const line of output.split('\n')) {
+        const m = line.match(/\[STEP\]\s*(.+)/)
+        if (m) steps.push({ text: m[1].trim(), time: new Date().toISOString() })
+      }
+      if (steps.length > 0) {
+        try {
+          const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+          p.steps = steps; p.current = steps[steps.length - 1].text
+          fs.writeFileSync(progressFile, JSON.stringify(p))
+        } catch {}
+      }
+    })
 
     child.on('close', (code) => {
       try { fs.appendFileSync(logFile, '\n=== 进程退出，code=' + code + ' ===\n', 'utf-8') } catch {}
