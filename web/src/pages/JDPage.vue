@@ -257,18 +257,27 @@ onMounted(async () => {
   // 恢复持久化的分析等待状态
   const saved = await store.getAnalysisState()
   if (saved && saved.status === 'waiting') {
-    // 先检查是否已经分析完了
     try {
       const jd = await store.fetchOne(saved.jdId)
-      if (jd && jd.parsed) {
-        store.clearAnalysisState()
-        return
-      }
+      if (jd && jd.parsed) { store.clearAnalysisState(); return }
     } catch {}
     analyzingId.value = saved.jdId
     analyzingTitle.value = saved.title || ''
     showForm.value = true
-    startPollingJD(saved.jdId)
+    startDots()
+    // 轮询进度
+    const check = async () => {
+      try {
+        const res = await api.get('/api/jds/' + encodeURIComponent(saved.jdId) + '/progress')
+        if (res) progress.value = res
+        if (res.status === 'done') { stopPolling(); stopDots(); store.clearAnalysisState(); store.fetchList(); analysisDoneId.value = saved.jdId; analysisDoneTitle.value = saved.title; analysisDone.value = true; analyzingId.value = null }
+      } catch {}
+    }
+    check()
+    pollTimer = setInterval(check, 2000)
+    progressTimer = setInterval(async () => {
+      try { const res = await api.get('/api/jds/' + encodeURIComponent(saved.jdId) + '/log'); if (res?.text) logText.value = res.text } catch {}
+    }, 3000)
   }
 })
 

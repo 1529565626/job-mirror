@@ -180,8 +180,8 @@ const routes = {
     const tmpFile = path.join(os.tmpdir(), `jobmirror-jd-${Date.now()}.txt`)
     fs.writeFileSync(tmpFile, analysisPrompt, 'utf-8')
 
-    // 从临时目录运行 claude -p，不加载项目 SKILL.md
-    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && type "${tmpFile}" | claude -p --output-format text 2>&1`], {
+    // 文件重定向到 claude stdin（避免 Windows type|pipe 兼容问题）
+    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && claude -p --output-format text < "${tmpFile}" 2>&1`], {
       cwd: os.tmpdir(),
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
