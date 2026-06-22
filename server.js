@@ -136,16 +136,10 @@ const routes = {
     fs.writeFileSync(progressFile, JSON.stringify(initProgress))
     fs.writeFileSync(logFile, '=== 职镜导入日志 ' + new Date().toISOString() + ' ===\n\n')
 
-    const prompt = [
-      '用职镜导入收件箱。在处理每个步骤时输出进度标记 [STEP] 步骤描述。',
-      '例如：[STEP] 基本信息已提取、[STEP] 技能分析完成 (15项)、[STEP] 档案已保存。',
-      '最后输出 DONE。'
-    ].join('\n')
+    const prompt = `用职镜导入收件箱。每完成一个解析步骤，将进度追加写入 ${progressFile.replace(/\\/g, '\\\\')}，在 steps 数组末尾追加 { text: "步骤描述" } 并更新 current 字段（保留已有内容）。最后输出 DONE。`
 
-    const tmpFile = path.join(os.tmpdir(), `jobmirror-import-${Date.now()}.txt`)
-    fs.writeFileSync(tmpFile, prompt, 'utf-8')
-
-    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && type "${tmpFile}" | claude -p --output-format text 2>&1`], {
+    // 直接传参，双引号保护
+    const child = spawn('cmd.exe', ['/c', `chcp 65001 > nul && claude -p "${prompt.replace(/"/g, '\\"')}" --output-format text 2>&1`], {
       cwd: PROJECT_DIR,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
@@ -155,41 +149,35 @@ const routes = {
     child.stdout.on('data', (data) => {
       const chunk = data.toString()
       output += chunk
-      // 追加到日志文件
       try { fs.appendFileSync(logFile, chunk, 'utf-8') } catch {}
 
-      // 解析 [STEP] 并更新进度
       const steps = []
-      const lines = output.split('\n')
-      for (const line of lines) {
+      for (const line of output.split('\n')) {
         const m = line.match(/\[STEP\]\s*(.+)/)
         if (m) steps.push({ text: m[1].trim(), time: new Date().toISOString() })
       }
       if (steps.length > 0) {
         try {
-          const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
-          progress.steps = steps
-          progress.current = steps[steps.length - 1].text
-          fs.writeFileSync(progressFile, JSON.stringify(progress))
+          const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+          p.steps = steps; p.current = steps[steps.length - 1].text
+          fs.writeFileSync(progressFile, JSON.stringify(p))
         } catch {}
       }
     })
 
     child.on('close', (code) => {
       try { fs.appendFileSync(logFile, '\n=== 进程退出，code=' + code + ' ===\n', 'utf-8') } catch {}
-      try { fs.unlinkSync(tmpFile) } catch {}
       try {
-        const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
-        progress.status = fs.existsSync(processed) ? 'done' : 'error'
-        progress.current = fs.existsSync(processed) ? '导入完成' : ('导入失败 (exit=' + code + ')，请查看日志')
-        progress.exitCode = code
-        fs.writeFileSync(progressFile, JSON.stringify(progress))
+        const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        p.status = fs.existsSync(processed) ? 'done' : 'error'
+        p.current = fs.existsSync(processed) ? '导入完成' : ('导入失败 (exit=' + code + ')，请查看日志')
+        p.exitCode = code
+        fs.writeFileSync(progressFile, JSON.stringify(p))
       } catch {}
     })
 
     child.on('error', (err) => {
       try { fs.appendFileSync(logFile, '\n=== 进程错误: ' + err.message + ' ===\n', 'utf-8') } catch {}
-      try { fs.unlinkSync(tmpFile) } catch {}
     })
 
     return { ok: true, status: 'started' }
