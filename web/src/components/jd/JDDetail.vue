@@ -38,8 +38,9 @@
               v-for="sk in store.current.parsed.requiredSkills"
               :key="sk.name"
               class="tag"
-              :class="sk.importance === 'required' ? 'tag-required' : 'tag-preferred'"
+              :class="[sk.importance === 'required' ? 'tag-required' : 'tag-preferred', categoryTagClass(sk.category)]"
             >
+              <span class="tag-cat-icon">{{ categoryIcon(sk.category) }}</span>
               {{ sk.name }}
               <span class="tag-level">{{ sk.level }}</span>
             </span>
@@ -76,6 +77,13 @@ const store = useJDsStore()
 function loadJD() {
   const id = route.params.id
   if (id) store.fetchOne(id)
+}
+
+function categoryIcon(cat) {
+  return { hard: '🛠', soft: '🤝', industry: '📈' }[cat] || ''
+}
+function categoryTagClass(cat) {
+  return cat ? 'tag-cat-' + cat : ''
 }
 
 onMounted(loadJD)
@@ -129,6 +137,11 @@ onMounted(loadJD)
   background: var(--color-primary-bg);
   color: var(--color-primary);
 }
+
+.tag-cat-icon { font-size: 0.7rem; }
+.tag-cat-hard { border-left: 2px solid var(--blue); padding-left: 4px; }
+.tag-cat-soft { border-left: 2px solid var(--color-success); padding-left: 4px; }
+.tag-cat-industry { border-left: 2px solid var(--yellow); padding-left: 4px; }
 
 .tag-level {
   font-size: 0.7rem;
