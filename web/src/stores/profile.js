@@ -125,6 +125,19 @@ export const useProfileStore = defineStore('profile', {
       } catch {
         return null
       }
+    },
+
+    /** 保存档案编辑 */
+    async updateProfile(data) {
+      this.error = null
+      try {
+        await api.put('/api/profile', data)
+        this.data = data
+        return true
+      } catch (e) {
+        this.error = e.message
+        return false
+      }
     }
   }
 })

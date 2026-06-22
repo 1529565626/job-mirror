@@ -122,6 +122,17 @@
     <div v-else class="profile-content">
       <!-- 工具栏 -->
       <div class="profile-toolbar">
+        <button v-if="!editMode" class="btn-tool" @click="startEdit">
+          编辑档案
+        </button>
+        <template v-else>
+          <button class="btn-tool btn-tool--save" @click="saveEdit">
+            保存修改
+          </button>
+          <button class="btn-tool" @click="cancelEdit">
+            取消
+          </button>
+        </template>
         <button class="btn-tool" @click="triggerUpdate">
           更新内容
         </button>
@@ -142,11 +153,11 @@
         <button class="update-hint__close" @click="showUpdateHint = false">&#10005;</button>
       </div>
 
-      <BasicInfo :basic="store.data.basic" />
-      <SkillList :skills="store.data.skills" />
-      <ExperienceList :experiences="store.data.experiences" @polish="onPolishRequest" />
-      <ProjectList :projects="store.data.projects || []" @polish="onPolishRequest" />
-      <EducationList :education="store.data.education" />
+      <BasicInfo :basic="editData.basic" :edit-mode="editMode" @update:basic="v => editData.basic = v" />
+      <SkillList :skills="editData.skills" :edit-mode="editMode" @update:skills="v => editData.skills = v" />
+      <ExperienceList :experiences="editData.experiences" :edit-mode="editMode" @polish="onPolishRequest" @update:experiences="v => editData.experiences = v" />
+      <ProjectList :projects="editData.projects || []" :edit-mode="editMode" @polish="onPolishRequest" @update:projects="v => editData.projects = v" />
+      <EducationList :education="editData.education" :edit-mode="editMode" @update:education="v => editData.education = v" />
     </div>
 
     <!-- 清空确认弹窗 -->
@@ -247,6 +258,25 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString()
 
 const store = useProfileStore()
+
+// --- 编辑模式 ---
+const editMode = ref(false)
+const editData = ref({})
+
+function startEdit() {
+  editData.value = JSON.parse(JSON.stringify(store.data || {}))
+  editMode.value = true
+}
+
+async function saveEdit() {
+  const ok = await store.updateProfile(editData.value)
+  if (ok) editMode.value = false
+}
+
+function cancelEdit() {
+  editData.value = {}
+  editMode.value = false
+}
 
 // --- AI 润色 ---
 const polishVisible = ref(false)
