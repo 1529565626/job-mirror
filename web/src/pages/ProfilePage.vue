@@ -48,18 +48,15 @@
           <p class="drop-hint">{{ extractingFileName }}</p>
         </template>
 
-        <!-- 提取成功 → 等待 Claude 解析 -->
-        <template v-else-if="uploadResult === 'success' || uploadResult === 'waiting'">
+        <!-- 提取成功 → AI 自动解析中 -->
+        <template v-else-if="uploadResult === 'success' || uploadResult === 'processing'">
           <div class="spinner"></div>
-          <p class="drop-title">简历已就绪</p>
-          <p class="drop-desc">请在终端中执行以下命令：</p>
-          <div class="terminal-cmd">
-            <code>用职镜导入收件箱</code>
-            <button class="btn-copy" @click.stop="copyCommand">复制</button>
-          </div>
+          <p class="drop-title">{{ uploadResult === 'processing' ? 'AI 正在解析简历...' : '简历已就绪' }}</p>
+          <p class="drop-desc" v-if="uploadResult === 'processing'">正在自动提取技能、经历、教育背景…</p>
+          <p class="drop-desc" v-else>正在连接 AI 服务…</p>
           <p class="drop-hint">
             <span class="pulse-dot"></span>
-            等待 Claude Code 解析中{{ '.'.repeat(waitingDots) }}
+            请稍候{{ '.'.repeat(waitingDots) }}
           </p>
         </template>
 
@@ -118,7 +115,7 @@
       <div v-if="showClearConfirm" class="confirm-overlay" @click.self="showClearConfirm = false">
         <div class="confirm-card">
           <p class="confirm-title">确认清空档案？</p>
-          <p class="confirm-desc">将删除个人档案、收件箱简历和原始文件。此操作不可撤销。</p>
+          <p class="confirm-desc">将删除个人档案、收件箱简历、已保存的岗位、分析报告和润色记录。此操作不可撤销。</p>
           <div class="confirm-actions">
             <button class="btn btn-cancel" @click="showClearConfirm = false">取消</button>
             <button class="btn btn-danger" :disabled="clearing" @click="doClear">
@@ -305,20 +302,36 @@ async function handleFile(file) {
   try {
     const { text, base64, fileType } = await extractWithBinary(file)
     const ok = await store.saveResume(text)
-    if (ok) {
-      await store.saveResumeFile(base64, file.name, fileType)
+    if (!ok) throw new Error(store.error || '保存失败')
+
+    await store.saveResumeFile(base64, file.name, fileType)
+    isExtracting.value = false
+
+    // 自动调用 AI 解析
+    uploadResult.value = 'processing'
+    startDots()
+
+    try {
+      const result = await api.post('/api/inbox/process')
+      if (result.ok) {
+        stopDots()
+        await store.fetch()
+        if (!store.isEmpty) {
+          uploadResult.value = null
+          return
+        }
+      }
+      throw new Error(result.error || '解析未完成')
+    } catch (processErr) {
+      // AI 自动解析失败 → 降级为手动模式
+      stopDots()
       uploadResult.value = 'success'
-      // 自动进入等待解析状态，开始轮询
       startPolling()
-    } else {
-      throw new Error(store.error || '保存失败')
     }
   } catch (e) {
+    isExtracting.value = false
     uploadResult.value = 'error'
     uploadError.value = e.message
-  } finally {
-    isExtracting.value = false
-    extractingFileName.value = ''
   }
 }
 
@@ -333,35 +346,39 @@ const waitingDots = ref(0)
 let dotsTimer = null
 
 function startPolling() {
-  // 进入等待解析状态
-  uploadResult.value = 'waiting'
+  uploadResult.value = 'success'
   showUpdateHint.value = false
-
-  // 持久化导入状态（跨页面刷新保留）
   store.saveImportState({ status: 'waiting', startedAt: new Date().toISOString() })
+  startDots()
 
-  // 动画：螺旋点
-  dotsTimer = setInterval(() => {
-    waitingDots.value = (waitingDots.value % 3) + 1
-  }, 600)
-
-  // 轮询收件箱的 .processed 标记
   const check = async () => {
     const status = await store.checkInboxStatus()
     if (status.processed) {
-      // 解析完成！自动加载档案
       stopPolling()
       await store.clearImportState()
       await store.fetch()
       if (!store.isEmpty) {
-        uploadResult.value = null // 清除上传态，展示档案内容
+        uploadResult.value = null
       }
     }
   }
 
-  // 立即检查一次（可能已经解析完了），然后每 3 秒轮询
   check()
   pollTimer.value = setInterval(check, 3000)
+}
+
+function startDots() {
+  dotsTimer = setInterval(() => {
+    waitingDots.value = (waitingDots.value % 3) + 1
+  }, 600)
+}
+
+function stopDots() {
+  if (dotsTimer) {
+    clearInterval(dotsTimer)
+    dotsTimer = null
+  }
+  waitingDots.value = 0
 }
 
 function stopPolling() {
@@ -369,11 +386,7 @@ function stopPolling() {
     clearInterval(pollTimer.value)
     pollTimer.value = null
   }
-  if (dotsTimer) {
-    clearInterval(dotsTimer)
-    dotsTimer = null
-  }
-  waitingDots.value = 0
+  stopDots()
 }
 
 // 更新内容引导

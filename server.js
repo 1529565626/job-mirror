@@ -41,20 +41,34 @@ function list(dir) {
   } catch { return [] }
 }
 
+function rmDir(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const f of fs.readdirSync(dir)) {
+    const p = path.join(dir, f)
+    fs.statSync(p).isDirectory() ? rmDir(p) : fs.unlinkSync(p)
+  }
+  fs.rmdirSync(dir)
+}
+
 // 路由表
 const routes = {
   // 用户档案
   'GET /api/profile': () => read(path.join(ROOT, 'profile.json')) || {},
   'PUT /api/profile': (body) => { fs.writeFileSync(path.join(ROOT, 'profile.json'), JSON.stringify(body, null, 2)); return { ok: true } },
   'DELETE /api/profile': () => {
-    const p = path.join(ROOT, 'profile.json')
-    if (fs.existsSync(p)) fs.unlinkSync(p)
-    const inbox = path.join(ROOT, 'inbox')
-    if (fs.existsSync(path.join(inbox, 'resume.txt'))) fs.unlinkSync(path.join(inbox, 'resume.txt'))
-    if (fs.existsSync(path.join(inbox, '.processed'))) fs.unlinkSync(path.join(inbox, '.processed'))
-    if (fs.existsSync(path.join(inbox, 'resume.bin'))) fs.unlinkSync(path.join(inbox, 'resume.bin'))
-    if (fs.existsSync(path.join(inbox, 'resume.meta'))) fs.unlinkSync(path.join(inbox, 'resume.meta'))
-    if (fs.existsSync(path.join(inbox, '.import-state.json'))) fs.unlinkSync(path.join(inbox, '.import-state.json'))
+    // 删除 profile
+    const pf = path.join(ROOT, 'profile.json')
+    if (fs.existsSync(pf)) fs.unlinkSync(pf)
+    // 删除 inbox
+    rmDir(path.join(ROOT, 'inbox'))
+    // 删除所有 JDs
+    rmDir(path.join(ROOT, 'jds'))
+    // 删除所有报告
+    rmDir(path.join(ROOT, 'reports'))
+    // 删除润色队列
+    if (fs.existsSync(path.join(ROOT, 'polish-queue'))) rmDir(path.join(ROOT, 'polish-queue'))
+    // 重建空目录
+    ;['inbox', 'jds', 'reports'].forEach(d => fs.mkdirSync(path.join(ROOT, d), { recursive: true }))
     return { ok: true }
   },
 
@@ -93,6 +107,50 @@ const routes = {
     const exists = fs.existsSync(p)
     const processed = fs.existsSync(path.join(ROOT, 'inbox', '.processed'))
     return { exists, processed, size: exists ? fs.statSync(p).size : 0 }
+  },
+
+  // 自动处理收件箱：调用 Claude CLI 解析简历
+  'POST /api/inbox/process': () => {
+    const resumePath = path.join(ROOT, 'inbox', 'resume.txt')
+    if (!fs.existsSync(resumePath)) return { ok: false, error: '收件箱为空' }
+    if (fs.existsSync(path.join(ROOT, 'inbox', '.processed'))) fs.unlinkSync(path.join(ROOT, 'inbox', '.processed'))
+
+    const prompt = [
+      '你正在运行职镜(JobMirror)的自动化导入流程。请按以下步骤操作，不要输出中间过程：',
+      '',
+      '1. 读取文件：' + resumePath,
+      '2. 按照以下规则解析简历：',
+      '   - 基本信息：提取行业、当前职位、工作年限、一句话总结',
+      '   - 技能：逐项提取名称+分类+熟练度(5级：novice/intermediate/advanced/proficient/expert)+使用年限',
+      '     分类枚举：编程语言/框架工具/数据分析/产品设计/运营市场/管理软技能/语言/其他',
+      '     熟练度映射：精通/专家→proficient，熟练掌握/熟练→advanced，掌握/熟悉→intermediate，了解/入门→novice',
+      '   - 工作经历：逐段提取公司/职位/起止时间(YYYY-MM)/核心职责描述/关键成果',
+      '   - 项目经历：逐项提取项目名/角色/时间/描述/成果/技术栈',
+      '   - 教育背景：逐条提取学校/学位/专业/毕业年份',
+      '3. 如果 ~/.jobmirror/profile.json 已存在，按增量合并策略合并（技能去重取最高熟练度，经历追加去重），否则创建新文件',
+      '4. 写入 ~/.jobmirror/profile.json（version:"1.0"，2空格缩进，UTF-8，更新updatedAt）',
+      '5. 创建空文件 ~/.jobmirror/inbox/.processed',
+      '6. 只输出"OK"表示完成，不要输出其他任何内容'
+    ].join('\n')
+
+    const tmpFile = path.join(os.tmpdir(), `jobmirror-import-${Date.now()}.txt`)
+    fs.writeFileSync(tmpFile, prompt, 'utf-8')
+
+    try {
+      const cmd = `chcp 65001 > nul && type "${tmpFile}" | claude -p --bare --output-format text 2>&1`
+      const raw = execSync(cmd, {
+        timeout: 180000,
+        encoding: 'utf-8',
+        maxBuffer: 1024 * 1024,
+        windowsHide: true
+      })
+      const output = raw.trim().replace(/^Active code page:\s*\d+\s*/i, '').trim()
+      const ok = output.includes('OK') && fs.existsSync(path.join(ROOT, 'inbox', '.processed'))
+      return ok ? { ok: true } : { ok: false, error: '导入未完成，请检查 Claude 输出', detail: output.slice(0, 500) }
+    } catch (e) {
+      try { fs.unlinkSync(tmpFile) } catch {}
+      return { ok: false, error: (e.stderr || e.message || 'Claude CLI 调用失败').slice(0, 300) }
+    }
   },
 
   // 导入状态持久化（跨页面刷新保留等待态）
