@@ -1,8 +1,7 @@
-<!-- ResumeTemplate.vue — 简历主模板：编排所有区块，内容与设计完全分离 -->
+<!-- ResumeTemplate.vue — 简历主模板 -->
 <template>
   <div class="resume-page" :data-template="templateName">
-    <ResumeHeader :basic="profile.basic || {}" />
-    <ResumeBasicInfo :basic="profile.basic || {}" />
+    <ResumeHeader :basic="profile.basic || {}" :education="profile.education || []" />
     <ResumeSkillList :skills="profile.skills || []" />
     <ResumeExperienceList :experiences="profile.experiences || []" />
     <ResumeProjectList
@@ -17,7 +16,6 @@
 
 <script setup>
 import ResumeHeader from './ResumeHeader.vue'
-import ResumeBasicInfo from './ResumeBasicInfo.vue'
 import ResumeSkillList from './ResumeSkillList.vue'
 import ResumeExperienceList from './ResumeExperienceList.vue'
 import ResumeProjectList from './ResumeProjectList.vue'

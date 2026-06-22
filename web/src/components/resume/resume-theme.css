@@ -16,9 +16,6 @@
   --resume-section-title-size: 1.1rem;
   --resume-item-title-size: 1rem;
 
-  /* 技能星级 */
-  --star-filled: var(--yellow);
-  --star-empty: #e0dcd0;
 }
 
 /* === 简历容器 === */
@@ -104,20 +101,6 @@
   font-size: var(--text-sm);
   line-height: 1.6;
 }
-
-/* === 技能星级 === */
-.skill-stars {
-  display: inline-flex;
-  gap: 1px;
-  margin-left: 6px;
-}
-
-.skill-star {
-  font-size: 0.75rem;
-}
-
-.skill-star.filled { color: var(--star-filled); }
-.skill-star.empty  { color: var(--star-empty); }
 
 /* === 技能分类区块 === */
 .skill-category {
