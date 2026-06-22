@@ -58,6 +58,17 @@
             <li v-for="(r, i) in store.current.parsed.responsibilities" :key="i">{{ r }}</li>
           </ul>
         </div>
+
+        <!-- 关联报告 -->
+        <div v-if="store.current.reportIds?.length" class="jd-reports">
+          <h3>分析报告</h3>
+          <RouterLink
+            v-for="rid in store.current.reportIds"
+            :key="rid"
+            :to="`/reports/${rid}`"
+            class="report-link"
+          >查看分析报告 →</RouterLink>
+        </div>
       </section>
     </article>
   </div>
@@ -65,7 +76,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useJDsStore } from '@/stores/jds'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -160,4 +171,9 @@ onMounted(loadJD)
   list-style: disc;
   padding-left: var(--space-lg);
 }
+
+.jd-reports { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--color-border); }
+.jd-reports h3 { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); margin-bottom: var(--space-sm); }
+.report-link { display: inline-block; font-size: var(--text-sm); color: var(--blue); font-weight: 500; padding: 4px 0; }
+.report-link:hover { text-decoration: underline; }
 </style>

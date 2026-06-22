@@ -9,7 +9,10 @@
       <!-- ====== 左侧：分析报告 ====== -->
       <div class="report-left">
         <button class="back-btn" @click="$router.push('/reports')">← 返回报告列表</button>
-        <h2 class="column-title">分析报告</h2>
+        <h2 class="column-title">
+          分析报告
+          <RouterLink v-if="store.current.jdId" :to="`/jobs/${store.current.jdId}`" class="jd-link">查看原始岗位 →</RouterLink>
+        </h2>
 
         <div class="report-grid">
           <MatchScore v-if="store.current.match" :score="store.current.match.overallScore" />
@@ -144,7 +147,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useReportsStore } from '@/stores/reports'
 import { useProfileStore } from '@/stores/profile'
 import { api } from '@/services/api'
@@ -202,7 +205,9 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 .report-layout { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2xl); padding: 0 var(--space-lg); height: calc(100vh - var(--header-height) - var(--space-xl) * 2); }
 .report-left { display: flex; flex-direction: column; gap: var(--space-lg); min-width: 0; padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; }
 .report-right { display: flex; flex-direction: column; min-width: 0; padding: 0 var(--space-sm); }
-.column-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--color-text); padding-bottom: var(--space-sm); border-bottom: 2px solid var(--yellow); margin-bottom: var(--space-md); }
+.column-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--color-text); padding-bottom: var(--space-sm); border-bottom: 2px solid var(--yellow); margin-bottom: var(--space-md); display: flex; align-items: baseline; justify-content: space-between; }
+.jd-link { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; color: var(--blue); }
+.jd-link:hover { text-decoration: underline; }
 .report-grid { display: grid; grid-template-columns: auto 1fr; gap: var(--space-lg); align-items: start; }
 .breakdown-items { display: flex; flex-direction: column; gap: var(--space-md); }
 .breakdown-item { display: flex; flex-direction: column; gap: var(--space-xs); }
