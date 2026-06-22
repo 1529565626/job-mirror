@@ -56,7 +56,7 @@
       :profile="profile"
       :config="resumeConfig"
       :jd-keywords="jdKeywords"
-      template-name="default"
+      :template-name="resumeConfig.templateName"
     />
   </div>
 </template>
@@ -95,16 +95,24 @@ const hasProfile = computed(() => !!(props.profile && (props.profile.skills?.len
 // 传给 ResumeTemplate 的配置
 const resumeConfig = computed(() => ({
   projectSort: config.value.projectSort,
-  projectCount: config.value.projectCount
+  projectCount: config.value.projectCount,
+  templateName: config.value.templateName || 'professional'
 }))
 
 // --- 预览：从 Vue 组件渲染提取 HTML，即时打开新窗口 ---
 function getRenderedHTML() {
-  if (!renderRef.value) return buildResumePage(resumeText.value ? basicMDToHTML(resumeText.value) : '<p>暂无简历内容</p>')
-  return buildResumePage(renderRef.value.innerHTML)
+  const tpl = config.value.templateName || 'professional'
+  if (!renderRef.value) return buildResumePage(resumeText.value ? basicMDToHTML(resumeText.value) : '<p>暂无简历内容</p>', tpl)
+  return buildResumePage(renderRef.value.innerHTML, tpl)
 }
 
-function buildResumePage(bodyHTML) {
+function buildResumePage(bodyHTML, tpl) {
+  const themes = {
+    professional: { bg:'#f2efe8', pageBg:'#fff', accent:'#F4D758', accent2:'#2B7FD8', text:'#1A1A2E', text2:'#4A4A5A', text3:'#8A8A9A', titleAlign:'center', sectionBorder:'2px solid #F4D758', summaryBg:'rgba(43,127,216,.04)', summaryBorder:'3px solid #2B7FD8', pageShadow:'0 4px 16px rgba(0,0,0,.06)', pageRadius:'4px', headingFont:'Noto Serif SC' },
+    modern: { bg:'#e8ecf1', pageBg:'#fff', accent:'#2B7FD8', accent2:'#1a5fb4', text:'#1a1a2e', text2:'#4a5568', text3:'#718096', titleAlign:'left', sectionBorder:'1.5px solid #2B7FD8', summaryBg:'#f7fafc', summaryBorder:'3px solid #2B7FD8', pageShadow:'0 2px 12px rgba(0,0,0,.08)', pageRadius:'2px', headingFont:'Noto Sans SC' },
+    minimal: { bg:'#fff', pageBg:'#fff', accent:'#333', accent2:'#555', text:'#222', text2:'#555', text3:'#888', titleAlign:'left', sectionBorder:'1px solid #e0e0e0', summaryBg:'transparent', summaryBorder:'1px solid #e0e0e0', pageShadow:'none', pageRadius:'0', headingFont:'Noto Sans SC' }
+  }
+  const t = themes[tpl] || themes.professional
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -114,35 +122,33 @@ function buildResumePage(bodyHTML) {
 <style>
 :root{--blue:#2B7FD8;--yellow:#F4D758;--red:#E84A5F;--cream:#fefcf6;--ink:#1A1A2E;--color-text:#1A1A2E;--color-text-secondary:#4A4A5A;--color-text-muted:#8A8A9A;--color-bg:#fefcf6;--color-surface:#ffffff;--color-border:rgba(26,26,26,.07);--font-heading:'Noto Serif SC',serif;--font-body:'Noto Sans SC',sans-serif;--text-xs:0.75rem;--text-sm:0.85rem;--text-base:1rem;--star-filled:#F4D758;--star-empty:#e0dcd0;--resume-page-width:780px;--resume-page-padding:3rem;--resume-section-gap:1.6rem;--resume-item-gap:1rem;--resume-tag-gap:6px;--resume-name-size:1.6rem;--resume-section-title-size:1.1rem;--resume-item-title-size:1rem}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size:15px;line-height:1.7;color:#1A1A2E;background:#f2efe8}
-::selection{background:#F4D758;color:#1A1A2E}
-.resume-page{max-width:780px;margin:2rem auto;background:#fff;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.06);padding:3rem;font-family:'Noto Sans SC',sans-serif;font-size:1rem;line-height:1.7;color:#1A1A2E}
-.resume-page h1,.resume-name{font-family:'Noto Serif SC',serif;font-size:1.6rem;font-weight:900;color:#1A1A2E;margin:0 0 .25rem;letter-spacing:.02em;text-align:center}
-.resume-subtitle{font-size:.85rem;color:#4A4A5A;margin:0;text-align:center}
-.resume-section-title{font-family:'Noto Serif SC',serif;font-size:1.1rem;font-weight:700;color:#1A1A2E;margin:1.6rem 0 .5rem;padding-bottom:.35rem;border-bottom:2px solid #F4D758}
-.resume-section-title:first-child{margin-top:0}
+body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size:15px;line-height:1.7;color:${t.text};background:${t.bg}}
+::selection{background:${t.accent};color:#fff}
+.resume-page{max-width:780px;margin:2rem auto;background:${t.pageBg};border-radius:${t.pageRadius};box-shadow:${t.pageShadow};padding:3rem;font-family:'Noto Sans SC',sans-serif;font-size:1rem;line-height:1.7;color:${t.text}}
+.resume-name{font-family:'${t.headingFont}',serif;font-size:1.8rem;font-weight:900;color:${t.text};margin:0 0 .15rem;text-align:${t.titleAlign};letter-spacing:.02em}
+.resume-subtitle{font-size:.85rem;color:${t.text2};margin:0;text-align:${t.titleAlign}}
+.resume-meta-row{font-size:.85rem;color:${t.text3};margin:.15rem 0 0;text-align:${t.titleAlign}}
+.resume-section-title{font-family:'${t.headingFont}',serif;font-size:1.1rem;font-weight:700;color:${t.text};margin:1.5rem 0 .5rem;padding-bottom:.3rem;border-bottom:${t.sectionBorder};letter-spacing:.01em}
 .resume-card{margin-bottom:1rem}
-.resume-card-title{font-family:'Noto Serif SC',serif;font-size:1rem;font-weight:700;color:#1A1A2E;margin-bottom:.15rem}
-.resume-card-subtitle{font-size:.85rem;color:#4A4A5A;margin-bottom:.25rem}
-.resume-card-meta{font-size:.75rem;color:#8A8A9A;margin-bottom:.35rem}
+.resume-card-title{font-family:'${t.headingFont}',serif;font-size:1rem;font-weight:700;color:${t.text};margin-bottom:.15rem}
+.resume-card-subtitle{font-size:.85rem;color:${t.text2};margin-bottom:.2rem}
+.resume-card-meta{font-size:.75rem;color:${t.text3};margin-bottom:.3rem}
 .resume-tags{display:flex;flex-wrap:wrap;gap:6px;margin:.35rem 0}
-.resume-tag{display:inline-block;padding:2px 10px;font-size:.75rem;color:#2B7FD8;background:rgba(43,127,216,.07);border-radius:12px}
-.resume-summary{margin:.6rem 0 0;padding:.6rem 1rem;background:rgba(43,127,216,.04);border-left:3px solid #2B7FD8;border-radius:0 8px 8px 0;font-style:italic;color:#4A4A5A;font-size:.85rem;line-height:1.6}
-.resume-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem 1.5rem;margin-bottom:.4rem}
-.resume-info-item{display:flex;gap:.4rem;font-size:.85rem}
-.resume-info-label{color:#8A8A9A;flex-shrink:0}
-.resume-info-value{color:#1A1A2E}
+.resume-tag{display:inline-block;padding:2px 10px;font-size:.75rem;color:${t.accent2};background:${t.accent}20;border-radius:12px}
+.resume-summary{margin:.6rem 0 0;padding:.6rem 1rem;background:${t.summaryBg};border-left:${t.summaryBorder};border-radius:0 8px 8px 0;font-size:.85rem;color:${t.text2};line-height:1.6}
 .resume-highlights{padding-left:1.4em;margin:.3rem 0 0;list-style:disc}
-.resume-highlights li{font-size:.85rem;color:#4A4A5A;margin-bottom:3px;line-height:1.6}
-.skill-category{margin-bottom:.6rem}
-.skill-category-name{font-size:.85rem;font-weight:600;color:#4A4A5A;margin-bottom:.2rem}
-.skill-items{display:flex;flex-wrap:wrap;gap:6px 16px}
-.skill-item{font-size:.85rem;color:#1A1A2E;display:inline-flex;align-items:center}
-.skill-stars{display:inline-flex;gap:1px;margin-left:6px}
-.skill-star{font-size:.75rem}
-.skill-star.filled{color:#F4D758}
-.skill-star.empty{color:#e0dcd0}
-.skill-years{font-size:.75rem;color:#8A8A9A;margin-left:4px}
+.resume-highlights li{font-size:.85rem;color:${t.text2};margin-bottom:3px;line-height:1.6}
+.skill-category{margin-bottom:.5rem}
+.skill-category-name{font-size:.85rem;font-weight:700;color:${t.text};margin-bottom:.2rem}
+.skill-items{display:flex;flex-wrap:wrap;gap:6px 14px}
+.skill-item{font-size:.85rem;color:${t.text};display:inline-flex;align-items:center;gap:6px}
+.skill-name{font-weight:500}
+.skill-tag{font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:8px}
+.proficiency-expert,.proficiency-proficient{background:#27ae6020;color:#1f8b4c}
+.proficiency-advanced{background:#2b7fd820;color:#1a6bc4}
+.proficiency-intermediate{background:#f4d75830;color:#8b7a10}
+.proficiency-novice{background:#e8e8e8;color:#888}
+.skill-years{font-size:.7rem;color:${t.text3}}
 @media print{body{background:#fff}.resume-page{box-shadow:none;max-width:100%;margin:0;padding:1.5rem;border-radius:0}.resume-tag{background:none;border:1px solid #ddd}}
 </style>
 </head>
@@ -189,7 +195,7 @@ function exportFormat(format) {
 
   // HTML / DOC / PDF 均从渲染后的 DOM 提取
   const bodyHTML = renderRef.value?.innerHTML || basicMDToHTML(resumeText.value)
-  const html = buildResumePage(bodyHTML)
+  const html = buildResumePage(bodyHTML, config.value.templateName || 'professional')
 
   if (format === 'html') {
     downloadBlob(`${name}.html`, html, 'text/html')

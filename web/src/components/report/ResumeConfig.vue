@@ -3,6 +3,14 @@
   <div class="config-wrapper">
     <div v-if="open" class="config-popup">
       <div class="config-row">
+        <label class="config-label">简历模板</label>
+        <select class="config-select" :value="config.templateName || 'professional'" @change="emit('update:config', { ...config, templateName: $event.target.value })">
+          <option value="professional">专业型</option>
+          <option value="modern">现代型</option>
+          <option value="minimal">简洁型</option>
+        </select>
+      </div>
+      <div class="config-row">
         <label class="config-label">项目经历展示</label>
         <select class="config-select" :value="config.projectCount" @change="emit('update:config', { ...config, projectCount: $event.target.value })">
           <option value="all">全量 ({{ projects.length }} 个)</option>
