@@ -39,7 +39,7 @@
       <!-- 该类别下的学习建议 -->
       <div v-for="item in cat.items" :key="'advice-' + item.skillName">
         <div v-if="item.learningAdvice" class="learning-advice">
-          <div class="advice-title">📖 学习建议</div>
+          <div class="advice-title">📖 学习建议 — {{ item.skillName }}</div>
           <div class="advice-meta">
             预计 {{ item.learningAdvice.estimatedWeeks }} 周 · 难度 {{ item.learningAdvice.difficulty }}
           </div>
