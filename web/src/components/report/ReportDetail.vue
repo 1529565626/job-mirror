@@ -135,17 +135,17 @@
       </div>
     </div>
 
-    <!-- 面板展开/收起触发按钮 -->
-    <button
-      v-if="store.current"
-      class="panel-toggle-btn"
-      :class="{ open: panelOpen }"
-      @click="panelOpen = !panelOpen"
-      :title="panelOpen ? '收起简历编辑器' : '展开简历编辑器'"
-    >
-      <span class="toggle-icon">{{ panelOpen ? '▶' : '◀' }}</span>
-      <span class="toggle-text">{{ panelOpen ? '收起' : '简历编辑' }}</span>
-    </button>
+    <!-- 面板展开/收起：悬停交界处浮现 -->
+    <div v-if="store.current" class="toggle-wrapper" :class="{ open: panelOpen }">
+      <div class="toggle-sensor"></div>
+      <button
+        class="panel-toggle-btn"
+        @click="panelOpen = !panelOpen"
+      >
+        <span class="toggle-icon">{{ panelOpen ? '▶' : '◀' }}</span>
+        <span class="toggle-text">{{ panelOpen ? '收起' : '简历编辑' }}</span>
+      </button>
+    </div>
 
     <ProjectPickerModal
       :visible="pickerVisible"
@@ -215,7 +215,7 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 </script>
 
 <style scoped>
-/* 双栏 flex 布局（替代 grid，撑满视口） */
+/* 双栏 flex 布局，右面板至少 1/3 宽度 */
 .report-layout {
   display: flex;
   gap: 0;
@@ -226,15 +226,40 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 .report-layout.panel-open { gap: var(--space-2xl); }
 .report-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-lg); padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; }
 .report-right {
-  width: 0; opacity: 0; overflow: hidden;
+  flex: 0 0 0;
+  overflow: hidden; opacity: 0;
   display: flex; flex-direction: column; min-width: 0; padding: 0;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+  transition: flex-basis 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
-.report-layout.panel-open .report-right { width: 420px; opacity: 1; padding: 0 var(--space-sm); }
+.report-layout.panel-open .report-right {
+  flex: 0 0 33.333%;
+  min-width: 360px;
+  opacity: 1;
+  padding: 0 var(--space-sm);
+}
 
-/* 面板展开/收起浮动按钮 */
-.panel-toggle-btn {
+/* 悬停包裹器：固定右边缘 / 面板打开时移到交界处 */
+.toggle-wrapper {
   position: fixed;
+  right: 0;
+  top: var(--header-height);
+  bottom: 0;
+  width: 36px;
+  z-index: 99;
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.toggle-wrapper.open {
+  right: auto;
+  left: calc(66.667% - 18px);
+}
+.toggle-sensor {
+  position: absolute;
+  inset: 0;
+}
+
+/* 按钮默认隐藏，悬停包裹器或按钮自身时浮现 */
+.panel-toggle-btn {
+  position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -251,17 +276,28 @@ onMounted(() => { profileStore.fetch(); loadReport() })
   font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 600;
-  box-shadow: -2px 0 14px rgba(43, 127, 216, 0.25);
-  transition: transform 0.25s ease, padding 0.25s ease, right 0.35s ease, border-radius 0.25s ease;
+  box-shadow: -2px 0 14px rgba(43, 127, 216, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s ease, padding 0.25s ease, border-radius 0.25s ease;
+}
+.toggle-wrapper:hover .panel-toggle-btn,
+.panel-toggle-btn:hover {
+  opacity: 1;
+  pointer-events: auto;
 }
 .panel-toggle-btn:hover {
   transform: translateY(-50%) scale(1.1);
   padding-right: 16px;
 }
-.panel-toggle-btn.open {
-  right: calc(420px - 4px);
-  border-radius: 40px;
-  padding: 12px 12px 12px 10px;
+.toggle-wrapper.open .panel-toggle-btn {
+  right: auto;
+  left: 0;
+  border-radius: 0 40px 40px 0;
+  padding: 16px 12px 16px 10px;
+}
+.toggle-wrapper.open .panel-toggle-btn:hover {
+  padding-left: 16px;
 }
 .toggle-icon { font-size: 0.75rem; line-height: 1; }
 .toggle-text {
@@ -271,7 +307,7 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 }
 
 @media (max-width: 1100px) {
-  .panel-toggle-btn { display: none; }
+  .toggle-wrapper { display: none; }
 }
 .column-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--color-text); padding-bottom: var(--space-sm); border-bottom: 2px solid var(--yellow); margin-bottom: var(--space-md); display: flex; align-items: baseline; justify-content: space-between; }
 .jd-link { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; color: var(--blue); }
