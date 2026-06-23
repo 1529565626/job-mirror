@@ -36,20 +36,27 @@
         </div>
       </div>
 
-      <!-- 该类别下的学习建议 -->
-      <div v-for="item in cat.items" :key="'advice-' + item.skillName">
-        <div v-if="item.learningAdvice" class="learning-advice">
-          <div class="advice-title">📖 学习建议 — {{ item.skillName }}</div>
-          <div class="advice-meta">
-            预计 {{ item.learningAdvice.estimatedWeeks }} 周 · 难度 {{ item.learningAdvice.difficulty }}
+      <!-- 该类别下的学习建议（可折叠） -->
+      <div v-if="cat.adviceItems.length" class="advice-toggle-section">
+        <button class="advice-toggle-btn" @click="toggleAdvice(cat.key)">
+          <span class="toggle-arrow">{{ expanded.has(cat.key) ? '▾' : '▸' }}</span>
+          📖 学习建议 ({{ cat.adviceItems.length }} 项)
+          <span v-if="!expanded.has(cat.key)" class="toggle-hint"> — 点击查看缺失技能提升方案</span>
+        </button>
+        <div v-if="expanded.has(cat.key)" class="advice-list-expanded">
+          <div v-for="item in cat.adviceItems" :key="'advice-' + item.skillName" class="learning-advice">
+            <div class="advice-title">{{ item.skillName }}</div>
+            <div class="advice-meta">
+              预计 {{ item.learningAdvice.estimatedWeeks }} 周 · 难度 {{ item.learningAdvice.difficulty }}
+            </div>
+            <ul class="advice-list">
+              <li v-for="(s, i) in item.learningAdvice.suggestions" :key="i">
+                <strong>[{{ s.type }}] {{ s.title }}</strong>
+                <span class="advice-desc">{{ s.description }}</span>
+                <span class="advice-hours">({{ s.estimatedHours }}h)</span>
+              </li>
+            </ul>
           </div>
-          <ul class="advice-list">
-            <li v-for="(s, i) in item.learningAdvice.suggestions" :key="i">
-              <strong>[{{ s.type }}] {{ s.title }}</strong>
-              <span class="advice-desc">{{ s.description }}</span>
-              <span class="advice-hours">({{ s.estimatedHours }}h)</span>
-            </li>
-          </ul>
         </div>
       </div>
     </div>
@@ -57,13 +64,20 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   analysis: { type: Array, default: () => [] }
 })
 
 const matchOrder = { missing: 0, partial: 1, matched: 2 }
+const expanded = ref(new Set())
+
+function toggleAdvice(key) {
+  if (expanded.value.has(key)) expanded.value.delete(key)
+  else expanded.value.add(key)
+  expanded.value = new Set(expanded.value)
+}
 
 const categories = computed(() => {
   const groups = { hard: [], soft: [], industry: [] }
@@ -74,7 +88,6 @@ const categories = computed(() => {
     else groups.hard.push(item)
   }
 
-  // Sort items within each category: missing first, then partial, then matched
   for (const key of Object.keys(groups)) {
     groups[key].sort((a, b) => (matchOrder[a.match] ?? 2) - (matchOrder[b.match] ?? 2))
   }
@@ -87,7 +100,8 @@ const categories = computed(() => {
         key,
         items: groups[key],
         total: groups[key].length,
-        matched: groups[key].filter(i => i.match === 'matched').length
+        matched: groups[key].filter(i => i.match === 'matched').length,
+        adviceItems: groups[key].filter(i => i.learningAdvice)
       })
     }
   }
@@ -206,6 +220,41 @@ function matchLabel(m) {
   border-left: 2px solid var(--blue);
   background: var(--color-primary-bg);
   border-radius: var(--radius-sm);
+}
+
+.advice-toggle-section {
+  margin-top: var(--space-sm);
+}
+.advice-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--color-primary-bg);
+  border: 1px dashed var(--blue);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.15s;
+}
+.advice-toggle-btn:hover {
+  background: rgba(43, 127, 216, 0.08);
+}
+.toggle-arrow {
+  font-size: 0.7rem;
+  width: 14px;
+  text-align: center;
+}
+.toggle-hint {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.advice-list-expanded {
+  margin-top: var(--space-sm);
 }
 
 .advice-title {
