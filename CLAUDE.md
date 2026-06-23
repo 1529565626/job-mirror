@@ -8,8 +8,9 @@
 环境要求: Node.js >= 18, npm >= 9
 安装命令:
   1. cd web && npm install          # 安装前端依赖
-  2. node server.js                 # 启动文件服务 (端口 3099)
-  3. cd web && npx vite --host      # 启动开发服务器 (端口 5173)
+  2. node server.js &               # 后台启动文件服务 (端口 3099)
+  3. cd web && npx vite --host &    # 后台启动开发服务器 (端口 5173)
+注意: 两个服务需后台并行运行，不要在前台阻塞等待
 访问地址: http://localhost:5173
 数据目录: ~/.jobmirror/ (自动创建)
 ```
