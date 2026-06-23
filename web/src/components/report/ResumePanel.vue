@@ -54,10 +54,10 @@
           <button class="btn-export" @click="exportFormat('html')">下载 HTML</button>
           <button class="btn-export" @click="exportFormat('md')">下载 MD</button>
           <button class="btn-export" @click="exportFormat('docx')">导出 DOCX</button>
-          <span class="btn-export-wrap">
-            <button class="btn-export" @click="exportFormat('pdf')">导出 PDF</button>
+          <button class="btn-export btn-recommend" @click="exportFormat('pdf')">
+            导出 PDF
             <span class="badge-recommend">推荐</span>
-          </span>
+          </button>
         </div>
       </div>
     </div>
@@ -721,13 +721,12 @@ defineExpose({ applySuggestion, undoLast, undoSuggestion, applyToProject })
   background: var(--color-primary-bg);
 }
 
-.btn-export-wrap {
+.btn-recommend {
   position: relative;
-  flex: 1;
-  display: flex;
 }
-.btn-export-wrap .btn-export {
-  width: 100%;
+.btn-recommend .badge-recommend {
+  top: -8px;
+  right: -4px;
 }
 .badge-recommend {
   position: absolute;
