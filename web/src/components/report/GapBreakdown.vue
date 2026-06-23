@@ -146,8 +146,8 @@ function matchLabel(m) {
 }
 
 .skill-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
@@ -161,7 +161,13 @@ function matchLabel(m) {
 .row-partial { background: var(--color-warning-bg); }
 .row-matched { background: transparent; }
 
-.skill-name { font-weight: 600; color: var(--color-text); }
+.skill-name {
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1 1 100px;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
 
 .skill-levels {
   font-size: var(--text-xs);
@@ -169,6 +175,8 @@ function matchLabel(m) {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .level-arrow { color: var(--color-text-muted); }
@@ -215,4 +223,9 @@ function matchLabel(m) {
 
 .advice-desc { display: block; color: var(--color-text-muted); margin-left: 0; }
 .advice-hours { font-size: 0.7rem; color: var(--color-text-muted); margin-left: var(--space-xs); }
+
+@media (max-width: 900px) {
+  .skill-row { flex-direction: column; align-items: flex-start; gap: var(--space-xs); }
+  .skill-name { flex: none; width: 100%; }
+}
 </style>
