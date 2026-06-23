@@ -134,9 +134,10 @@ function buildResumePage(bodyHTML, tpl) {
 <title>简历预览 — ${props.reportId}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
 <style>
+@page{margin:0;size:A4}
 :root{--blue:#2B7FD8;--yellow:#F4D758;--red:#E84A5F;--cream:#fefcf6;--ink:#1A1A2E;--color-text:#1A1A2E;--color-text-secondary:#4A4A5A;--color-text-muted:#8A8A9A;--color-bg:#fefcf6;--color-surface:#ffffff;--color-border:rgba(26,26,26,.07);--font-heading:'Noto Serif SC',serif;--font-body:'Noto Sans SC',sans-serif;--text-xs:0.75rem;--text-sm:0.85rem;--text-base:1rem;--star-filled:#F4D758;--star-empty:#e0dcd0;--resume-page-width:780px;--resume-page-padding:3rem;--resume-section-gap:1.6rem;--resume-item-gap:1rem;--resume-tag-gap:6px;--resume-name-size:1.6rem;--resume-section-title-size:1.1rem;--resume-item-title-size:1rem}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size:15px;line-height:1.7;color:${t.text};background:${t.bg}}
+body{font-family:'Noto Sans SC',-apple-system,'PingFang SC',sans-serif;font-size:15px;line-height:1.7;color:${t.text};background:${t.bg};padding:12mm 15mm}
 ::selection{background:${t.accent};color:#fff}
 .resume-page{max-width:780px;margin:2rem auto;background:${t.pageBg};border-radius:${t.pageRadius};box-shadow:${t.pageShadow};padding:3rem;font-family:'Noto Sans SC',sans-serif;font-size:1rem;line-height:1.7;color:${t.text}}
 .resume-name{font-family:'${t.headingFont}',serif;font-size:1.8rem;font-weight:900;color:${t.text};margin:0 0 .15rem;text-align:${t.titleAlign};letter-spacing:.02em}
