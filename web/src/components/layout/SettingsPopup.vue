@@ -30,8 +30,8 @@ const showPopup = ref(false)
 <style scoped>
 .settings-popup {
   position: fixed;
-  left: 8px;
-  bottom: 8px;
+  left: calc(var(--sidebar-width) + 12px);
+  bottom: 12px;
   z-index: 200;
 }
 .gear-btn {

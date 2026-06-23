@@ -20,7 +20,7 @@
     </div>
 
     <div class="nav-footer">
-      <span class="version">v1.0</span>
+      <span class="version">JobMirror v1.0</span>
     </div>
   </nav>
 </template>
