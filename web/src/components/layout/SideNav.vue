@@ -13,7 +13,7 @@
     <!-- 报告详情快捷导航（仅报告详情页显示） -->
     <div v-if="isReportDetail" class="nav-sub">
       <p class="nav-sub-title">本页模块</p>
-      <a v-for="item in reportAnchors" :key="item.id" class="nav-sub-link" @click.prevent="scrollToAnchor(item.id)">{{ item.label }}</a>
+      <a v-for="item in reportAnchors" :key="item.id" class="nav-sub-link" :class="{ active: activeAnchor === item.id }" @click.prevent="scrollToAnchor(item.id)">{{ item.label }}</a>
     </div>
 
     <!-- 运行中任务 -->
@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/services/api'
 import { useDebugStore } from '@/stores/debug'
@@ -73,13 +73,43 @@ async function pollTasks() {
   try { tasks.value = await api.get('/api/tasks') || [] } catch {}
 }
 
+const activeAnchor = ref('')
+
 function scrollToAnchor(id) {
   const el = document.getElementById(id)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-onMounted(() => { pollTasks(); timer = setInterval(pollTasks, 3000) })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+// 监听滚动，高亮当前可见模块
+let observer = null
+function setupAnchorObserver() {
+  if (!isReportDetail.value) { activeAnchor.value = ''; return }
+  const container = document.querySelector('.report-left')
+  if (!container) return
+  const ids = reportAnchors.map(a => a.id)
+  observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { activeAnchor.value = e.target.id; break }
+    }
+  }, { root: container, threshold: 0.3 })
+  for (const id of ids) {
+    const el = document.getElementById(id)
+    if (el) observer.observe(el)
+  }
+}
+
+onMounted(() => {
+  pollTasks(); timer = setInterval(pollTasks, 3000)
+  setTimeout(setupAnchorObserver, 500)
+})
+watch(() => route.params.id, () => {
+  if (observer) observer.disconnect()
+  setTimeout(setupAnchorObserver, 600)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  if (observer) observer.disconnect()
+})
 </script>
 
 <style scoped>
@@ -95,6 +125,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   padding: var(--space-sm) var(--space-md);
   border-top: 1px solid var(--color-border);
   margin: 0 var(--space-sm);
+  background: rgba(43, 127, 216, 0.03);
+  border-radius: var(--radius-sm);
 }
 .nav-sub-title {
   font-size: 0.65rem;
@@ -112,10 +144,16 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   transition: all 0.12s;
+  cursor: pointer;
 }
 .nav-sub-link:hover {
   color: var(--blue);
   background: var(--color-primary-bg);
+}
+.nav-sub-link.active {
+  color: var(--blue);
+  background: var(--color-primary-bg);
+  font-weight: 600;
 }
 
 /* 任务指示器 */
