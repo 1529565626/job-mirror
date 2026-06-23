@@ -5,7 +5,7 @@
     <ErrorState v-else-if="store.error && !store.current" :message="store.error" @retry="loadReport" />
     <EmptyState v-else-if="!store.current" icon="chart" title="报告不存在或已删除" />
 
-    <div v-else class="report-layout">
+    <div v-else class="report-layout" :class="{ 'panel-open': panelOpen }">
       <!-- ====== 左侧：分析报告 ====== -->
       <div class="report-left">
         <button class="back-btn" @click="$router.push('/reports')">← 返回报告列表</button>
@@ -135,6 +135,18 @@
       </div>
     </div>
 
+    <!-- 面板展开/收起触发按钮 -->
+    <button
+      v-if="store.current"
+      class="panel-toggle-btn"
+      :class="{ open: panelOpen }"
+      @click="panelOpen = !panelOpen"
+      :title="panelOpen ? '收起简历编辑器' : '展开简历编辑器'"
+    >
+      <span class="toggle-icon">{{ panelOpen ? '▶' : '◀' }}</span>
+      <span class="toggle-text">{{ panelOpen ? '收起' : '简历编辑' }}</span>
+    </button>
+
     <ProjectPickerModal
       :visible="pickerVisible"
       :projects="profile.projects || []"
@@ -167,6 +179,7 @@ const store = useReportsStore()
 const profileStore = useProfileStore()
 
 const resumePanelRef = ref(null)
+const panelOpen = ref(false)
 const modifications = ref({ changes: [], config: {} })
 const appliedIndices = ref([])
 
@@ -202,9 +215,64 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 </script>
 
 <style scoped>
-.report-layout { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2xl); padding: 0 var(--space-lg); height: calc(100vh - var(--header-height) - var(--space-xl) * 2); }
-.report-left { display: flex; flex-direction: column; gap: var(--space-lg); min-width: 0; padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; }
-.report-right { display: flex; flex-direction: column; min-width: 0; padding: 0 var(--space-sm); }
+/* 双栏 flex 布局（替代 grid，撑满视口） */
+.report-layout {
+  display: flex;
+  gap: 0;
+  padding: 0 var(--space-lg);
+  height: calc(100vh - var(--header-height) - var(--space-xl) * 2);
+  transition: gap 0.35s ease;
+}
+.report-layout.panel-open { gap: var(--space-2xl); }
+.report-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-lg); padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; }
+.report-right {
+  width: 0; opacity: 0; overflow: hidden;
+  display: flex; flex-direction: column; min-width: 0; padding: 0;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+.report-layout.panel-open .report-right { width: 420px; opacity: 1; padding: 0 var(--space-sm); }
+
+/* 面板展开/收起浮动按钮 */
+.panel-toggle-btn {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px 16px 12px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 40px 0 0 40px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: -2px 0 14px rgba(43, 127, 216, 0.25);
+  transition: transform 0.25s ease, padding 0.25s ease, right 0.35s ease, border-radius 0.25s ease;
+}
+.panel-toggle-btn:hover {
+  transform: translateY(-50%) scale(1.1);
+  padding-right: 16px;
+}
+.panel-toggle-btn.open {
+  right: calc(420px - 4px);
+  border-radius: 40px;
+  padding: 12px 12px 12px 10px;
+}
+.toggle-icon { font-size: 0.75rem; line-height: 1; }
+.toggle-text {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+@media (max-width: 1100px) {
+  .panel-toggle-btn { display: none; }
+}
 .column-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--color-text); padding-bottom: var(--space-sm); border-bottom: 2px solid var(--yellow); margin-bottom: var(--space-md); display: flex; align-items: baseline; justify-content: space-between; }
 .jd-link { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; color: var(--blue); }
 .jd-link:hover { text-decoration: underline; }
@@ -284,5 +352,11 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 .pq-meta strong { color: var(--color-text); }
 .back-btn { font-size: var(--text-sm); color: var(--blue); cursor: pointer; background: none; border: none; padding: 0; font-family: var(--font-body); }
 .back-btn:hover { text-decoration: underline; }
-@media (max-width: 1100px) { .report-layout { grid-template-columns: 1fr; height: auto; } .report-left, .report-right { overflow-y: visible; } }
+@media (max-width: 1100px) {
+  .report-layout { flex-direction: column; height: auto; gap: var(--space-lg); }
+  .report-layout.panel-open { gap: var(--space-lg); }
+  .report-layout .report-right,
+  .report-layout.panel-open .report-right { width: 100%; opacity: 1; padding: 0 var(--space-sm); overflow: visible; }
+  .report-left, .report-right { overflow-y: visible; }
+}
 </style>
