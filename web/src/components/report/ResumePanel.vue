@@ -77,11 +77,10 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { api } from '@/services/api'
 import ResumeConfig from './ResumeConfig.vue'
 import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
 import '@/components/resume/resume-theme.css'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, convertInchesToTwip } from 'docx'
+import { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, convertInchesToTwip } from 'docx'
 
 const props = defineProps({
   reportId: { type: String, required: true },

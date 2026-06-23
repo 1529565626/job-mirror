@@ -76,8 +76,8 @@ cani/                              # 项目根目录（产品名: 职镜 / JobMi
 │   ├── architecture.md            # 系统架构设计
 │   ├── data-model.md              # 数据模型设计
 │   ├── skill-design.md            # Skill 封装设计
-│   ├── frontend-arch.md           # 前端架构设计
-│   └── 简历助手功能要求.md          # 原始需求
+│   └── frontend-arch.md           # 前端架构设计
+├── 简历助手功能要求.md              # 原始需求（项目根目录）
 ├── CLAUDE.md                      # 本文件 — 项目规范与协作指南
 └── PROJECT_STATUS.md              # 项目进度跟踪
 ```

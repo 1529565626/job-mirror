@@ -630,16 +630,6 @@ async function doClear() {
   showClearConfirm.value = false
 }
 
-function copyCommand() {
-  navigator.clipboard.writeText('用职镜导入收件箱').then(() => {
-    const btn = document.querySelector('.btn-copy')
-    if (btn) {
-      btn.textContent = '已复制'
-      setTimeout(() => { btn.textContent = '复制' }, 1500)
-    }
-  }).catch(() => {})
-}
-
 // === 源文件弹窗 ===
 const showSource = ref(false)
 const sourceText = ref('')
@@ -1319,39 +1309,6 @@ onUnmounted(() => {
 .result-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-xs); }
 .result-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-lg); }
 .result-actions { display: flex; align-items: center; justify-content: center; gap: var(--space-md); flex-wrap: wrap; }
-
-/* 终端命令展示 */
-.terminal-cmd {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  background: var(--color-text);
-  color: #fff;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  margin: var(--space-sm) 0;
-}
-
-.terminal-cmd code {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-.btn-copy {
-  padding: 2px 8px;
-  font-size: var(--text-xs);
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s;
-  border: none;
-}
-
-.btn-copy:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
 
 /* spinner（局部） */
 .spinner {
