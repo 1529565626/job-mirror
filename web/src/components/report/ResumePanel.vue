@@ -560,16 +560,21 @@ function persistChanges() {
 
 function updateConfig(newCfg) {
   config.value = { ...config.value, ...newCfg }
-  if (props.profile) resumeText.value = buildFormattedMD()
+  // 无修改时才从 profile 重新生成 MD，避免覆盖用户已应用的修改
+  if (!hasModifications.value && props.profile) resumeText.value = buildFormattedMD()
   emit('update-config', config.value)
 }
 
-// 当 profile 加载完成时，自动生成格式化 MD
+// 当 profile 首次加载时生成格式化 MD（有修改时跳过）
+let profileInitialized = false
 watch(() => props.profile, (p) => {
   if (p && (p.skills?.length || p.experiences?.length || p.projects?.length)) {
-    resumeText.value = buildFormattedMD()
+    if (!profileInitialized) {
+      resumeText.value = buildFormattedMD()
+      profileInitialized = true
+    }
   }
-}, { immediate: true, deep: true })
+}, { immediate: true })
 
 defineExpose({ applySuggestion, undoLast, undoSuggestion, applyToProject })
 </script>
