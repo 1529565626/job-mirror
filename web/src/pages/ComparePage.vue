@@ -49,7 +49,7 @@
                     <div class="score-bar-wrap">
                       <div class="score-bar" :style="{ width: reports[id].match?.overallScore + '%' }" :class="scoreColor(reports[id].match?.overallScore)"></div>
                     </div>
-                    <span class="score-text" :class="scoreColor(reports[id].match?.overallScore)">{{ reports[id].match?.overallScore }}%</span>
+                    <span class="score-text">{{ reports[id].match?.overallScore }}%</span>
                   </template>
                   <span v-else class="text-muted">—</span>
                 </td>
@@ -256,10 +256,10 @@ async function triggerAnalyze(id) {
 
 .score-bar-wrap { height: 6px; background: var(--color-border); border-radius: 3px; margin-bottom: 4px; overflow: hidden; }
 .score-bar { height: 100%; border-radius: 3px; transition: width .4s; }
-.score-high { background: #27ae60; color: #1f8b4c; }
-.score-mid { background: var(--yellow); color: #8b7a10; }
-.score-low { background: var(--red); color: #c0392b; }
-.score-text { font-size: var(--text-sm); font-weight: 700; }
+.score-high { background: #27ae60; }
+.score-mid { background: var(--yellow); }
+.score-low { background: var(--red); }
+.score-text { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); }
 
 .recommendation { margin-top: var(--space-lg); padding: var(--space-md); background: #27ae6010; border-radius: var(--radius-sm); border-left: 3px solid #27ae60; font-size: var(--text-sm); color: var(--color-text); }
 .rec-detail { color: var(--color-text-secondary); font-weight: 400; }
