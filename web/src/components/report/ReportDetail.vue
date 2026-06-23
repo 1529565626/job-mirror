@@ -6,6 +6,15 @@
     <EmptyState v-else-if="!store.current" icon="chart" title="报告不存在或已删除" />
 
     <div v-else class="report-layout" :class="{ 'panel-open': panelOpen }">
+      <!-- 面板展开/收起：悬停交界处浮现 -->
+      <div v-if="store.current" class="toggle-wrapper" :class="{ open: panelOpen }" :style="panelOpen ? { left: toggleLeft + 'px' } : {}">
+        <div class="toggle-sensor"></div>
+        <button class="panel-toggle-btn" @click="panelOpen = !panelOpen">
+          <span class="toggle-icon">{{ panelOpen ? '▶' : '◀' }}</span>
+          <span class="toggle-text">{{ panelOpen ? '收起' : '简历编辑' }}</span>
+        </button>
+      </div>
+
       <!-- ====== 左侧：分析报告 ====== -->
       <div class="report-left">
         <button class="back-btn" @click="$router.push('/reports')">← 返回报告列表</button>
@@ -139,18 +148,6 @@
       </div>
     </div>
 
-    <!-- 面板展开/收起：悬停交界处浮现 -->
-    <div v-if="store.current" class="toggle-wrapper" :class="{ open: panelOpen }">
-      <div class="toggle-sensor"></div>
-      <button
-        class="panel-toggle-btn"
-        @click="panelOpen = !panelOpen"
-      >
-        <span class="toggle-icon">{{ panelOpen ? '▶' : '◀' }}</span>
-        <span class="toggle-text">{{ panelOpen ? '收起' : '简历编辑' }}</span>
-      </button>
-    </div>
-
     <ProjectPickerModal
       :visible="pickerVisible"
       :projects="profile.projects || []"
@@ -162,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useReportsStore } from '@/stores/reports'
 import { useProfileStore } from '@/stores/profile'
@@ -184,7 +181,15 @@ const profileStore = useProfileStore()
 
 const resumePanelRef = ref(null)
 const panelOpen = ref(true)
+const toggleLeft = ref(0)
 const modifications = ref({ changes: [], config: {} })
+
+// 动态计算 toggle 按钮位置（基于 report-right 实际左边界）
+function updateTogglePos() {
+  const rightEl = document.querySelector('.report-right')
+  if (rightEl) toggleLeft.value = rightEl.getBoundingClientRect().left - 4
+}
+watch(panelOpen, () => setTimeout(updateTogglePos, 400))
 const appliedIndices = ref([])
 
 const pickerVisible = ref(false)
@@ -215,7 +220,14 @@ function onProjectSelected(project) { pickerVisible.value = false; resumePanelRe
 function onChangesUpdated(mapped) { appliedIndices.value = mapped.map(c => c.suggestionIndex) }
 
 watch(() => route.params.id, (n) => { if (n) loadReport() })
-onMounted(() => { profileStore.fetch(); loadReport() })
+onMounted(() => {
+  profileStore.fetch(); loadReport()
+  window.addEventListener('resize', updateTogglePos)
+  setTimeout(updateTogglePos, 600)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', updateTogglePos)
+})
 </script>
 
 <style scoped>
@@ -226,9 +238,11 @@ onMounted(() => { profileStore.fetch(); loadReport() })
   padding: 0 var(--space-lg);
   height: calc(100vh - var(--header-height) - var(--space-xl) * 2);
   transition: gap 0.35s ease;
+  position: relative;
+  overflow: hidden;
 }
 .report-layout.panel-open { gap: var(--space-2xl); }
-.report-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-lg); padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; scroll-behavior: smooth; }
+.report-left { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-lg); padding: 0 var(--space-sm) var(--space-md); overflow-y: auto; scroll-behavior: smooth; }
 .report-right {
   flex: 0 0 0;
   overflow: hidden; opacity: 0;
@@ -237,24 +251,18 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 }
 .report-layout.panel-open .report-right {
   flex: 0 0 33.333%;
-  min-width: 360px;
   opacity: 1;
   padding: 0 var(--space-sm);
 }
 
-/* 悬停包裹器：固定右边缘 / 面板打开时移到交界处 */
+/* 悬停包裹器：report-layout内绝对定位，JS动态计算左边界 */
 .toggle-wrapper {
-  position: fixed;
+  position: absolute;
   right: 0;
-  top: var(--header-height);
+  top: 0;
   bottom: 0;
   width: 36px;
   z-index: 99;
-  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.toggle-wrapper.open {
-  right: auto;
-  left: calc(66.667% - 18px);
 }
 .toggle-sensor {
   position: absolute;
@@ -311,7 +319,7 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 }
 
 @media (max-width: 1100px) {
-  .toggle-wrapper { display: none; }
+  .report-layout .toggle-wrapper { display: none; }
 }
 .column-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--color-text); padding-bottom: var(--space-sm); border-bottom: 2px solid var(--yellow); margin-bottom: var(--space-md); display: flex; align-items: baseline; justify-content: space-between; }
 .jd-link { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; color: var(--blue); }

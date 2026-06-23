@@ -92,6 +92,8 @@ onMounted(() => debugStore.fetch())
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-width);
+  min-width: 0;
+  overflow-x: hidden;
   padding: var(--space-xl);
 }
 </style>
