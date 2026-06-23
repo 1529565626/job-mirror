@@ -117,9 +117,15 @@ const resumeConfig = computed(() => ({
   templateName: config.value.templateName || 'professional'
 }))
 
-// --- 预览：从 Vue 组件渲染提取 HTML，即时打开新窗口 ---
+const hasModifications = computed(() => changes.value.length > 0)
+
+// --- 预览：有修改时用 MD 内容，无修改用组件渲染 ---
 function getRenderedHTML() {
   const tpl = config.value.templateName || 'professional'
+  // 用户应用了建议或手动编辑 → 使用 MD 转 HTML
+  if (hasModifications.value && resumeText.value) {
+    return buildResumePage(basicMDToHTML(resumeText.value), tpl)
+  }
   if (!renderRef.value) return buildResumePage(resumeText.value ? basicMDToHTML(resumeText.value) : '<p>暂无简历内容</p>', tpl)
   return buildResumePage(renderRef.value.innerHTML, tpl)
 }
@@ -262,7 +268,9 @@ function exportFormat(format) {
     return
   }
 
-  const bodyHTML = renderRef.value?.innerHTML || basicMDToHTML(resumeText.value)
+  const bodyHTML = (hasModifications.value && resumeText.value)
+    ? basicMDToHTML(resumeText.value)
+    : (renderRef.value?.innerHTML || basicMDToHTML(resumeText.value))
   const html = buildResumePage(bodyHTML, config.value.templateName || 'professional')
 
   if (format === 'html') {
