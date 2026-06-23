@@ -712,6 +712,10 @@ defineExpose({ applySuggestion, undoLast, undoSuggestion, applyToProject })
 .btn-export-wrap {
   position: relative;
   flex: 1;
+  display: flex;
+}
+.btn-export-wrap .btn-export {
+  width: 100%;
 }
 .badge-recommend {
   position: absolute;
