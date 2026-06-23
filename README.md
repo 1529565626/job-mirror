@@ -94,11 +94,22 @@ job-mirror/
 
 ## 快速开始
 
+### 前置依赖
+
+职镜的 AI 分析能力依赖外部 AI Agent 工具，使用前需先安装以下之一：
+
+| 工具 | 说明 | 安装方式 |
+|------|------|------|
+| [**Claude Code**](https://docs.anthropic.com/en/docs/claude-code) | ⭐ 推荐 — SKILL.md 原生适配 | `npm install -g @anthropic-ai/claude-code` |
+| [**Codex**](https://github.com/openai/codex) | OpenAI CLI，读取 CLAUDE.md | 参照官方文档 |
+| [**OpenClaw**](https://github.com/openclaw/openclaw) | 通用 AI Agent，读取项目指令 | 参照官方文档 |
+
+AI Agent 负责执行 `skill/SKILL.md` 中的简历解析、JD 对标、报告生成等分析任务。**未安装任何 AI Agent 时，职镜只能作为简历编辑器使用，无法进行 AI 分析。**
+
 ### 环境要求
 
 - **Node.js** >= 18
 - **npm** >= 9
-- **Claude Code** CLI（AI 分析引擎）
 
 ### 安装与运行
 
