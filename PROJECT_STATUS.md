@@ -116,35 +116,42 @@
 
 === 待办需求 ===
 
- 📋 #2 接入简历书写布局 skill（部分完成）
-    ✅ 三层分离组件体系已建立（数据层/CSS Token设计层/Vue渲染层）
-    ⬜ 多模板切换机制（default / modern / classic 等主题）
-    ⬜ Typst CLI 作为 PDF 导出后端（可选，当前 html2canvas 已满足需求）
-    状态: 基础组件已完成，待扩展多模板
+ 📋 #2 多简历模板（已完成）
+    ✅ 三层分离组件体系（数据层/CSS Token设计层/Vue渲染层）
+    ✅ 三套模板彻底差异化（professional/modern/minimal）
+    ✅ 模板选择器横排 + 预览切换
+    用户确认：满足基本要求，标记完结
 
- 📋 #3 简历编辑面板可折叠
-    默认隐藏右侧面板，用户点击触发按钮后展开
-    按钮为非规则矩形（胶囊/圆形/异形），hover 放大特效
-    未悬停时收缩在右侧边缘
-    状态: 待设计
+ 📋 #3 简历编辑面板可折叠（已完成）
+    ✅ 默认隐藏右侧面板，左侧占满全宽
+    ✅ 右侧边缘胶囊形浮动按钮，hover scale(1.1) 放大
+    ✅ 面板 flexbox + width 平滑过渡（0 ↔ 420px）
+    ✅ 展开时按钮跟随移至面板左边缘
+    ✅ 窄屏（<1100px）自动隐藏按钮
 
-2026-06-22  ResumeSkills 借鉴合入（PM主导 + Coder实施）→ 完成
- ├─ 调研: docs/reference-from-resumeskills.md — 8点借鉴评审
- ├─ 方案: docs/implementation-plan-resumeskills-ref.md — 7模块功能实现报告
- ├─ SKILL.md: 821 → 980 行，7 模块全部落地
- │   ├─ G: 边界情况处理（7场景 + 4组动态评分权重）
- │   ├─ F: 工作流歧义处理规则（3条消歧规则）
- │   ├─ B: 关键词三分类（hard/soft/industry → JD解析+对标+输出全链路）
- │   ├─ C: 子弹点 Before/After 改写（suggestion 字段升级为结构化对象）
- │   ├─ A: ATS 格式检查（排版红线/Section标题/关键词密度，5项检查）
- │   ├─ D: STAR 故事 + 包装话术 + 高频面试题预测
- │   └─ E: 对比维度扩展（成长空间/行业匹配/技能天花板 + 加权推荐公式）
- ├─ data-model.md: 同步 schema 变更（category/weightAdjustment/starStory/gapStory/predictedQuestions）
- └─ 验证: 待 Claude Code 端到端测试
+2026-06-23  JD 分析全链路完善 + 简历面板折叠 → 17 commits
+ ├─ bd76b86 feat: JD分析全自动化 — 提交即触发 Claude 分析
+ ├─ cc001dd feat: 侧栏任务指示器 — 实时显示后台执行中的任务
+ ├─ 3809b3a fix: JD分析步骤精简为4步
+ ├─ 6cfe853 fix: JD分析 — prompt 简化，[STEP] 标记解析
+ ├─ f8ab13f perf: JD分析 — 自包含 prompt，绕过 SKILL.md 节省 ~15s
+ ├─ 36b1969 fix: stdin管道改用文件重定向 + JDPage修复
+ ├─ 7b95b66 feat: 岗位批量对比 — 新菜单+勾选JD→多维对比表
+ ├─ 28c2d88 feat: 三套简历布局彻底差异化
+ ├─ 8af1322 fix: 模板选择器横排 + PDF改用浏览器打印
+ ├─ f9e8a76 feat: 技能note字段全链路
+ ├─ 3386413 feat: JD分析异常恢复闭环 + 执行日志归档系统
+ │   ├─ server.js: cancel/verify/retry + log/<session-id>/ 会话归档
+ │   ├─ LogsPage: 会话日志浏览（列表+详情+时间线+实时轮询）
+ │   ├─ JDPage: error/timeout/cancelled 三态UI + 重试/校验/取消
+ │   ├─ ProfilePage: 收件箱处理同步增强
+ │   └─ JDItem/JDDetail: 未分析岗位一键触发分析
+ │
+ └─ d3f1c9d feat: 简历编辑面板可折叠 — 默认隐藏+胶囊浮动按钮
 
 === 当前状态 ===
 
   状态: 开发中
-  阶段: SKILL.md 借鉴合入完成 — 待前端组件适配 + 端到端联调
+  阶段: 核心功能闭环 — 简历导入→JD分析→报告→简历编辑 全链路贯通
   阻塞: 无
-  下一步: #3 简历编辑面板可折叠，或 #2 多模板扩展
+  下一步: 端到端验收测试 / 待用户提出新需求
