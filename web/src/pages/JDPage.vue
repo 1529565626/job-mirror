@@ -180,7 +180,6 @@
         v-if="!store.isEmpty"
         :list="store.list"
         @delete="handleDelete"
-        @analyze="handleAnalyzeExisting"
       />
     </template>
   </div>

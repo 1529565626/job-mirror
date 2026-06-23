@@ -65,6 +65,7 @@ export const useJDsStore = defineStore('jds', {
       this.error = null
       const body = {
         id,
+        title,
         rawText,
         createdAt: new Date().toISOString(),
         parsed: null,

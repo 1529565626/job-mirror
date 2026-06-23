@@ -375,7 +375,26 @@ const routes = {
   },
 
   // 岗位
-  'GET /api/jds': () => list(path.join(ROOT, 'jds')),
+  'GET /api/jds': () => {
+    const dir = path.join(ROOT, 'jds')
+    try {
+      return fs.readdirSync(dir)
+        .filter(f => f.endsWith('.json') && !f.includes('.progress.json') && !f.includes('.modifications.json') && !f.endsWith('.json.bak'))
+        .map(f => {
+          const d = read(path.join(dir, f))
+          const id = f.replace('.json', '')
+          if (!d) return { id, title: '(文件损坏，请重新录入)', corrupted: true }
+          let overallScore = null
+          const reportFile = path.join(ROOT, 'reports', id + '.json')
+          if (fs.existsSync(reportFile)) {
+            const report = read(reportFile)
+            if (report?.match?.overallScore != null) overallScore = report.match.overallScore
+          }
+          return { id, createdAt: d.createdAt, title: d.title || d.parsed?.title || id || '(无标题)', overallScore }
+        })
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    } catch { return [] }
+  },
   'GET /api/jds/:id': (_, id) => read(path.join(ROOT, 'jds', id + '.json')) || null,
   'POST /api/jds': (body) => {
     const id = body.id || `${new Date().toISOString().slice(0, 10)}-未命名`

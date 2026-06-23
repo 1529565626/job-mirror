@@ -13,9 +13,6 @@
       <span v-else-if="!jd.corrupted" class="jd-badge badge-pending">待分析</span>
       <span v-if="jd.corrupted" class="jd-badge badge-corrupt">文件损坏</span>
     </div>
-    <div v-if="!jd.overallScore && !jd.corrupted" class="jd-actions">
-      <button class="btn-analyze" @click.stop="$emit('analyze', jd.id)">开始分析</button>
-    </div>
   </div>
 </template>
 
@@ -29,7 +26,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['delete', 'analyze'])
+defineEmits(['delete'])
 
 const router = useRouter()
 
@@ -110,18 +107,4 @@ function scoreClass(score) {
 .badge-pending { background: rgba(245,158,11,0.12); color: var(--amber, #f59e0b); }
 .badge-corrupt { background: rgba(239,68,68,0.12); color: var(--red, #ef4444); }
 
-.jd-actions { margin-top: var(--space-sm); }
-.btn-analyze {
-  font-size: var(--text-xs);
-  color: #fff;
-  background: var(--blue);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 4px 16px;
-  cursor: pointer;
-  font-weight: 600;
-  font-family: var(--font-body);
-  transition: opacity 0.15s;
-}
-.btn-analyze:hover { opacity: 0.85; }
 </style>
