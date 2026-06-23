@@ -91,8 +91,8 @@
                   ⏱ 已耗时 {{ elapsedStr }} / 最长 5:00
                 </p>
 
-                <!-- 执行日志窗口 -->
-                <div class="debug-panel">
+                <!-- 执行日志窗口（调试模式开启时显示） -->
+                <div v-if="debugStore.enabled" class="debug-panel">
                   <div class="debug-header">
                     <span class="debug-title">📋 执行日志</span>
                     <span class="tab-badge">{{ logLines }} 行</span>
@@ -189,6 +189,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useJDsStore } from '@/stores/jds'
+import { useDebugStore } from '@/stores/debug'
 import { api } from '@/services/api'
 import JDList from '@/components/jd/JDList.vue'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
@@ -198,6 +199,7 @@ import ErrorState from '@/components/shared/ErrorState.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useJDsStore()
+const debugStore = useDebugStore()
 
 const showForm = ref(false)
 const isSaving = ref(false)

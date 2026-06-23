@@ -16,11 +16,19 @@
         <RouterView />
       </main>
     </div>
+
+    <SettingsPopup />
   </div>
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import SideNav from './SideNav.vue'
+import SettingsPopup from './SettingsPopup.vue'
+import { useDebugStore } from '@/stores/debug'
+
+const debugStore = useDebugStore()
+onMounted(() => debugStore.fetch())
 </script>
 
 <style scoped>

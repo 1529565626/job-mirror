@@ -67,7 +67,7 @@
               </div>
             </div>
             <p class="analyzing-elapsed">⏱ 已耗时 {{ elapsedStr }} / 最长 5:00</p>
-            <div class="debug-panel">
+            <div v-if="debugStore.enabled" class="debug-panel">
               <div class="debug-header">
                 <span class="debug-title">📋 执行日志</span>
                 <span class="tab-badge">{{ logLines }} 行</span>
@@ -261,6 +261,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 import mammoth from 'mammoth'
 import { useProfileStore } from '@/stores/profile'
+import { useDebugStore } from '@/stores/debug'
 import { extractWithBinary } from '@/utils/fileExtractor'
 import { api } from '@/services/api'
 import BasicInfo from '@/components/profile/BasicInfo.vue'
@@ -279,6 +280,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString()
 
 const store = useProfileStore()
+const debugStore = useDebugStore()
 
 // --- 编辑模式 ---
 const editMode = ref(false)
