@@ -10,6 +10,12 @@
       </li>
     </ul>
 
+    <!-- 报告详情快捷导航（仅报告详情页显示） -->
+    <div v-if="isReportDetail" class="nav-sub">
+      <p class="nav-sub-title">本页模块</p>
+      <a v-for="item in reportAnchors" :key="item.id" class="nav-sub-link" @click.prevent="scrollToAnchor(item.id)">{{ item.label }}</a>
+    </div>
+
     <!-- 运行中任务 -->
     <div v-if="tasks.length" class="nav-tasks">
       <p class="tasks-title"><span class="pulse-dot"></span>执行中 ({{ tasks.length }})</p>
@@ -36,6 +42,16 @@ const debugStore = useDebugStore()
 const tasks = ref([])
 let timer = null
 
+const isReportDetail = computed(() => route.name === 'report-detail')
+
+const reportAnchors = [
+  { id: 'sec-score', label: '匹配度评分' },
+  { id: 'sec-skills', label: '技能雷达图' },
+  { id: 'sec-breakdown', label: '技能匹配详情' },
+  { id: 'sec-suggestions', label: '简历修改建议' },
+  { id: 'sec-interview', label: '面试准备' }
+]
+
 const allItems = [
   { path: '/', label: '个人档案', icon: '◆' },
   { path: '/jobs', label: '岗位管理', icon: '☰' },
@@ -57,6 +73,11 @@ async function pollTasks() {
   try { tasks.value = await api.get('/api/tasks') || [] } catch {}
 }
 
+function scrollToAnchor(id) {
+  const el = document.getElementById(id)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 onMounted(() => { pollTasks(); timer = setInterval(pollTasks, 3000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
@@ -68,6 +89,34 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .nav-link:hover { background: var(--color-bg); color: var(--color-text); }
 .nav-link.active { background: var(--color-primary-bg); color: var(--blue); font-weight: 600; border-left-color: var(--blue); }
 .nav-icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; }
+
+/* 报告快捷导航 */
+.nav-sub {
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--color-border);
+  margin: 0 var(--space-sm);
+}
+.nav-sub-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.nav-sub-link {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all 0.12s;
+}
+.nav-sub-link:hover {
+  color: var(--blue);
+  background: var(--color-primary-bg);
+}
 
 /* 任务指示器 */
 .nav-tasks { padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--color-border); margin: 0 var(--space-sm); }

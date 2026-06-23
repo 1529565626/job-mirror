@@ -6,11 +6,6 @@
     <EmptyState v-else-if="!store.current" icon="chart" title="报告不存在或已删除" />
 
     <div v-else class="report-layout" :class="{ 'panel-open': panelOpen }">
-      <!-- 模块快捷导航 -->
-      <nav class="anchor-nav">
-        <a v-for="item in anchorItems" :key="item.id" :href="'#' + item.id" class="anchor-link" :title="item.label">{{ item.icon }}</a>
-      </nav>
-
       <!-- ====== 左侧：分析报告 ====== -->
       <div class="report-left">
         <button class="back-btn" @click="$router.push('/reports')">← 返回报告列表</button>
@@ -190,14 +185,6 @@ const profileStore = useProfileStore()
 const resumePanelRef = ref(null)
 const panelOpen = ref(true)
 const modifications = ref({ changes: [], config: {} })
-
-const anchorItems = [
-  { id: 'sec-score', icon: '▣', label: '匹配度' },
-  { id: 'sec-skills', icon: '◈', label: '技能图' },
-  { id: 'sec-breakdown', icon: '≣', label: '技能详情' },
-  { id: 'sec-suggestions', icon: '✎', label: '修改建议' },
-  { id: 'sec-interview', icon: '◆', label: '面试准备' }
-]
 const appliedIndices = ref([])
 
 const pickerVisible = ref(false)
@@ -232,31 +219,6 @@ onMounted(() => { profileStore.fetch(); loadReport() })
 </script>
 
 <style scoped>
-/* 模块快捷导航 */
-.anchor-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: var(--space-xl);
-  flex-shrink: 0;
-}
-.anchor-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  text-decoration: none;
-  transition: all 0.15s;
-}
-.anchor-link:hover {
-  color: var(--blue);
-  background: var(--color-primary-bg);
-}
-
 /* 双栏 flex 布局，右面板至少 1/3 宽度 */
 .report-layout {
   display: flex;
