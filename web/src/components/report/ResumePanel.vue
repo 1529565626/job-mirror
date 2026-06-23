@@ -719,7 +719,7 @@ defineExpose({ applySuggestion, undoLast, undoSuggestion, applyToProject })
 }
 .badge-recommend {
   position: absolute;
-  top: -10px;
+  top: -4px;
   right: -6px;
   font-size: 0.55rem;
   font-weight: 700;
