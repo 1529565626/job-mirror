@@ -53,6 +53,7 @@
         <div class="export-btns">
           <button class="btn-export" @click="exportFormat('html')">下载 HTML</button>
           <button class="btn-export" @click="exportFormat('md')">下载 MD</button>
+          <button class="btn-export" @click="exportFormat('docx')">导出 DOCX</button>
           <button class="btn-export" @click="exportFormat('pdf')">导出 PDF</button>
         </div>
       </div>
@@ -77,6 +78,7 @@ import { api } from '@/services/api'
 import ResumeConfig from './ResumeConfig.vue'
 import ResumeTemplate from '@/components/resume/ResumeTemplate.vue'
 import '@/components/resume/resume-theme.css'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, convertInchesToTwip } from 'docx'
 
 const props = defineProps({
   reportId: { type: String, required: true },
@@ -253,6 +255,11 @@ function exportFormat(format) {
     return
   }
 
+  if (format === 'docx') {
+    buildDocx(name)
+    return
+  }
+
   const bodyHTML = renderRef.value?.innerHTML || basicMDToHTML(resumeText.value)
   const html = buildResumePage(bodyHTML, config.value.templateName || 'professional')
 
@@ -267,6 +274,106 @@ function exportFormat(format) {
     // 等字体/图片加载完成后触发打印
     w.onload = () => setTimeout(() => w.print(), 600)
   }
+}
+
+async function buildDocx(filename) {
+  const d = props.profile || {}
+  const b = d.basic || {}
+  const skills = d.skills || []
+  const exps = d.experiences || []
+  const projs = d.projects || []
+  const edu = d.education || []
+
+  const proficiencyLabel = { expert: '精通', proficient: '熟练', advanced: '掌握', intermediate: '了解', novice: '入门' }
+
+  // 按 category 分组技能
+  const skillGroups = {}
+  for (const s of skills) {
+    const cat = s.category || '其他'
+    if (!skillGroups[cat]) skillGroups[cat] = []
+    skillGroups[cat].push(s)
+  }
+
+  const children = []
+
+  // 头部
+  if (b.name) {
+    children.push(new Paragraph({ children: [new TextRun({ text: b.name, bold: true, size: 36, font: 'Microsoft YaHei' })], alignment: AlignmentType.CENTER, spacing: { after: 80 } }))
+    children.push(new Paragraph({ children: [new TextRun({ text: [b.currentRole, b.industry, b.yearsOfExperience ? b.yearsOfExperience + '年经验' : ''].filter(Boolean).join(' | '), size: 22, color: '555555', font: 'Microsoft YaHei' })], alignment: AlignmentType.CENTER, spacing: { after: 120 } }))
+    if (b.summary) {
+      children.push(new Paragraph({ children: [new TextRun({ text: b.summary, size: 21, font: 'Microsoft YaHei' })], spacing: { after: 200 } }))
+    }
+  }
+
+  // 技能
+  if (Object.keys(skillGroups).length > 0) {
+    children.push(new Paragraph({ children: [new TextRun({ text: '专业技能', bold: true, size: 26, font: 'Microsoft YaHei' })], border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: '2B7FD8', space: 4 } }, spacing: { before: 160, after: 100 } }))
+    for (const [cat, items] of Object.entries(skillGroups)) {
+      const skillTexts = items.map(s => `${s.name}(${proficiencyLabel[s.proficiency] || s.proficiency}${s.yearsUsed ? ',' + s.yearsUsed + '年' : ''})`)
+      children.push(new Paragraph({ children: [new TextRun({ text: cat + '：', bold: true, size: 21, font: 'Microsoft YaHei' }), new TextRun({ text: skillTexts.join(' / '), size: 21, font: 'Microsoft YaHei' })], spacing: { after: 60 }, bullet: { level: 0 } }))
+    }
+  }
+
+  // 工作经历
+  if (exps.length > 0) {
+    children.push(new Paragraph({ children: [new TextRun({ text: '工作经历', bold: true, size: 26, font: 'Microsoft YaHei' })], border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: '2B7FD8', space: 4 } }, spacing: { before: 200, after: 100 } }))
+    for (const exp of exps) {
+      const duration = exp.duration ? ((exp.duration.start || '') + ' — ' + (exp.duration.end || '至今')) : ''
+      children.push(new Paragraph({ children: [new TextRun({ text: (exp.company || '') + '  |  ' + (exp.role || ''), bold: true, size: 22, font: 'Microsoft YaHei' }), new TextRun({ text: '  ' + duration, size: 19, color: '888888', font: 'Microsoft YaHei' })], spacing: { after: 40 } }))
+      if (exp.description) {
+        children.push(new Paragraph({ children: [new TextRun({ text: exp.description, size: 20, font: 'Microsoft YaHei' })], spacing: { after: 40 } }))
+      }
+      if (exp.highlights?.length) {
+        for (const h of exp.highlights) {
+          children.push(new Paragraph({ children: [new TextRun({ text: h, size: 20, font: 'Microsoft YaHei' })], spacing: { after: 30 }, bullet: { level: 0 } }))
+        }
+      }
+    }
+  }
+
+  // 项目经历
+  if (projs.length > 0) {
+    children.push(new Paragraph({ children: [new TextRun({ text: '项目经历', bold: true, size: 26, font: 'Microsoft YaHei' })], border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: '2B7FD8', space: 4 } }, spacing: { before: 200, after: 100 } }))
+    for (const pj of projs) {
+      const duration = pj.duration ? ((pj.duration.start || '') + ' — ' + (pj.duration.end || '至今')) : ''
+      children.push(new Paragraph({ children: [new TextRun({ text: (pj.name || ''), bold: true, size: 22, font: 'Microsoft YaHei' }), new TextRun({ text: '  |  ' + (pj.role || '') + '  ' + duration, size: 19, color: '888888', font: 'Microsoft YaHei' })], spacing: { after: 40 } }))
+      if (pj.description) {
+        children.push(new Paragraph({ children: [new TextRun({ text: pj.description, size: 20, font: 'Microsoft YaHei' })], spacing: { after: 40 } }))
+      }
+      if (pj.techStack?.length) {
+        children.push(new Paragraph({ children: [new TextRun({ text: '技术栈：' + pj.techStack.join(' / '), size: 19, italics: true, color: '555555', font: 'Microsoft YaHei' })], spacing: { after: 40 } }))
+      }
+      if (pj.highlights?.length) {
+        for (const h of pj.highlights) {
+          children.push(new Paragraph({ children: [new TextRun({ text: h, size: 20, font: 'Microsoft YaHei' })], spacing: { after: 30 }, bullet: { level: 0 } }))
+        }
+      }
+    }
+  }
+
+  // 教育
+  if (edu.length > 0) {
+    children.push(new Paragraph({ children: [new TextRun({ text: '教育背景', bold: true, size: 26, font: 'Microsoft YaHei' })], border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: '2B7FD8', space: 4 } }, spacing: { before: 200, after: 100 } }))
+    for (const e of edu) {
+      children.push(new Paragraph({ children: [new TextRun({ text: [e.school, e.degree, e.major, e.graduationYear ? e.graduationYear + '年' : ''].filter(Boolean).join('  |  '), size: 21, font: 'Microsoft YaHei' })], spacing: { after: 60 }, bullet: { level: 0 } }))
+    }
+  }
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { margin: { top: convertInchesToTwip(0.8), bottom: convertInchesToTwip(0.8), left: convertInchesToTwip(1), right: convertInchesToTwip(1) } } },
+      children
+    }]
+  })
+
+  const blob = await Packer.toBlob(doc)
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `${filename}.docx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000)
 }
 
 function sanitizeFilename(name) {
