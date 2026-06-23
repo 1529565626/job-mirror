@@ -72,6 +72,40 @@ function debugLog(msg) { if (debugMode) console.log('[DEBUG]', msg) }
 
 // 工具函数
 function read(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')) } catch { return null } }
+
+// 修复 Claude 写入 JSON 时未转义双引号的常见问题
+function repairJSON(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    try { JSON.parse(raw); return true } catch {}
+    // 状态机修复: 字符串内部的裸双引号 → 转义
+    let out = ''; let inString = false; let escape = false
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i]
+      if (inString) {
+        if (escape) { out += ch; escape = false; continue }
+        if (ch === '\\') { out += ch; escape = true; continue }
+        if (ch === '"') {
+          // 检查下一个非空白字符：是 , } ] : 则为字符串结束，否则是内容引号
+          const rest = raw.substring(i + 1)
+          const m = rest.match(/^\s*(\S)/)
+          const next = m ? m[1] : ''
+          if (next === ',' || next === '}' || next === ']' || next === ':' || next === '' || next === '\n' || next === '\r') {
+            inString = false; out += '"'
+          } else {
+            out += '\\"'
+          }
+          continue
+        }
+        out += ch; continue
+      }
+      if (ch === '"') inString = true
+      out += ch
+    }
+    fs.writeFileSync(filePath, out, 'utf-8')
+    try { JSON.parse(out); return true } catch { return false }
+  } catch { return false }
+}
 function getOrigin(req) {
   const origin = req.headers.origin || ''
   return ALLOW_ORIGIN.test(origin) ? origin : 'http://localhost:5173'
@@ -519,6 +553,7 @@ const routes = {
       '- 如果某步骤执行时间超过 60 秒，视为失败，输出 [ERROR] 步骤X超时 — 已中止 然后停止',
       '- 所有步骤成功后输出 DONE',
       '- 不要反问，不要确认，直接执行',
+      '- JSON 写入规则：所有字符串值内的 ASCII 双引号（"）必须转义为 \\"，如 "JD标注\\"必备\\""。中文弯引号不需要转义。如果不确定，读回文件用 JSON.parse 验证。',
       '═══════════════════════════════════════'
     ].join('\n')
 
@@ -529,9 +564,11 @@ const routes = {
       prompt: promptText,
       onDone: (code, output) => {
         const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
+        // 修复 Claude 写入 JSON 时的常见问题（未转义双引号等）
+        if (fs.existsSync(reportFile)) repairJSON(reportFile)
         const reportExists = fs.existsSync(reportFile)
 
-        // 从 Claude stdout 提取步骤1的 PARSED JSON（贪婪匹配到行尾最后一个 }）
+        // 从 Claude stdout 提取步骤1的 PARSED JSON
         let parsed = null
         if (output) {
           for (const line of output.split('\n')) {
@@ -805,6 +842,7 @@ const routes = {
       '- 如果某步骤执行时间超过 60 秒，视为失败，输出 [ERROR] 步骤X超时 — 已中止 然后停止',
       '- 所有步骤成功后输出 DONE',
       '- 不要反问，不要确认，直接执行',
+      '- JSON 写入规则：所有字符串值内的 ASCII 双引号（"）必须转义为 \\"，如 "JD标注\\"必备\\""。中文弯引号不需要转义。如果不确定，读回文件用 JSON.parse 验证。',
       '═══════════════════════════════════════'
     ].join('\n')
 
@@ -819,6 +857,7 @@ const routes = {
           let parsed = null
           const parsedMatch = (output || '').match(/PARSED:\s*(\{[\s\S]+?\})\s*(?:\n|$)/)
           if (parsedMatch) { try { parsed = JSON.parse(parsedMatch[1]) } catch {} }
+          if (fs.existsSync(reportFile)) repairJSON(reportFile)
           const reportExists = fs.existsSync(reportFile)
           const done = !!parsed && reportExists
           if (parsed) {
