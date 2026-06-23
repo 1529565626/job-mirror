@@ -7,9 +7,7 @@
         <span class="brand-mark">Z</span>
         <h1 class="brand-name">职镜</h1>
       </div>
-      <div class="header-actions">
-        <span class="header-subtitle">AI 面试助手</span>
-      </div>
+      <div class="header-actions"></div>
     </header>
 
     <div class="app-body">
