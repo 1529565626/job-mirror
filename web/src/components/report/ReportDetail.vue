@@ -179,7 +179,7 @@ const store = useReportsStore()
 const profileStore = useProfileStore()
 
 const resumePanelRef = ref(null)
-const panelOpen = ref(false)
+const panelOpen = ref(true)
 const modifications = ref({ changes: [], config: {} })
 const appliedIndices = ref([])
 
