@@ -38,7 +38,8 @@ const navItems = [
   { path: '/', label: '个人档案', icon: '◆' },
   { path: '/jobs', label: '岗位管理', icon: '☰' },
   { path: '/compare', label: '岗位对比', icon: '⇔' },
-  { path: '/reports', label: '分析报告', icon: '★' }
+  { path: '/reports', label: '分析报告', icon: '★' },
+  { path: '/logs', label: '执行日志', icon: '◷' }
 ]
 
 function isActive(path) {

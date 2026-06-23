@@ -6,6 +6,7 @@
       :key="jd.id"
       :jd="jd"
       @delete="$emit('delete', jd.id)"
+      @analyze="$emit('analyze', $event)"
     />
   </div>
 </template>
@@ -20,7 +21,7 @@ defineProps({
   }
 })
 
-defineEmits(['delete'])
+defineEmits(['delete', 'analyze'])
 </script>
 
 <style scoped>

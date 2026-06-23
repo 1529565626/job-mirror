@@ -48,59 +48,80 @@
           <p class="drop-hint">{{ extractingFileName }}</p>
         </template>
 
-        <!-- AI 解析中 → 进度展示 -->
-        <template v-else-if="uploadResult === 'processing'">
-          <div class="drop-title-row">
+         <!-- AI 解析进行中 / 出错 / 超时 -->
+        <template v-else-if="uploadResult === 'processing' || uploadResult === 'error' || uploadResult === 'timeout' || uploadResult === 'cancelled'">
+
+          <!-- ====== 正常运行中 ====== -->
+          <template v-if="inboxPhase === 'running'">
             <div class="spinner"></div>
             <p class="drop-title">AI 正在解析简历</p>
-          </div>
-          <p class="drop-current-step">{{ progress.current || '正在连接…' }}</p>
-          <!-- 进度条 -->
-          <div class="progress-bar-wrap">
-            <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
-          </div>
-          <!-- 步骤列表 -->
-          <div class="progress-steps">
-            <div
-              v-for="s in allSteps"
-              :key="s.label"
-              class="progress-step"
-              :class="{ 'step-done': s.done, 'step-active': s.active }"
-            >
-              <span class="step-icon">{{ s.done ? '✓' : s.active ? '◉' : '○' }}</span>
-              <span class="step-label">{{ s.label }}</span>
-              <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
+            <p class="drop-current-step">{{ progress.current || '正在连接…' }}</p>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+            </div>
+            <div class="progress-steps">
+              <div v-for="s in allSteps" :key="s.label" class="progress-step" :class="{ 'step-done': s.done, 'step-active': s.active }">
+                <span class="step-icon">{{ s.done ? '✓' : s.active ? '◉' : '○' }}</span>
+                <span class="step-label">{{ s.label }}</span>
+                <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
+              </div>
+            </div>
+            <p class="analyzing-elapsed">⏱ 已耗时 {{ elapsedStr }} / 最长 5:00</p>
+            <div class="debug-panel">
+              <div class="debug-header">
+                <span class="debug-title">📋 执行日志</span>
+                <span class="tab-badge">{{ logLines }} 行</span>
+                <button class="debug-btn-copy" @click="copyFullLog">复制全部</button>
+                <span class="debug-copied" v-if="debugCopied">已复制 ✓</span>
+              </div>
+              <div class="debug-body">
+                <pre class="debug-code response-code">{{ logText || '(加载中…)' }}</pre>
+              </div>
+            </div>
+            <div class="analyzing-actions">
+              <button class="btn-verify" @click="verifyInboxStatus">刷新状态</button>
+              <button class="btn-dismiss" @click="cancelInboxAnalysis">取消分析</button>
+            </div>
+          </template>
+
+          <!-- ====== 分析失败 ====== -->
+          <div v-else-if="inboxPhase === 'error'" class="result-state result-error">
+            <div class="result-icon">✗</div>
+            <p class="result-title">解析失败</p>
+            <p class="result-desc">{{ progress.current || 'AI 进程异常退出' }}</p>
+            <div class="result-actions">
+              <button class="btn btn-primary" @click="retryInboxAnalysis" :disabled="isRetrying">{{ isRetrying ? '重试中…' : '重新解析' }}</button>
+              <button class="btn-verify" @click="verifyInboxStatus">校验状态</button>
+              <button class="btn-dismiss" @click="resetUpload">关闭</button>
             </div>
           </div>
 
-          <!-- 日志面板 -->
-          <details class="log-panel" @toggle="onLogToggle">
-            <summary class="log-toggle">
-              <span>查看执行日志</span>
-              <span class="log-status">{{ logText ? logText.split('\n').length + ' 行' : '加载中…' }}</span>
-            </summary>
-            <pre class="log-content">{{ logText || '(加载中…)' }}</pre>
-          </details>
+          <!-- ====== 超时 ====== -->
+          <div v-else-if="inboxPhase === 'timeout'" class="result-state result-timeout">
+            <div class="result-icon">⏱</div>
+            <p class="result-title">解析超时</p>
+            <p class="result-desc">{{ progress.current || 'AI 引擎处理超过 5 分钟' }}</p>
+            <div class="result-actions">
+              <button class="btn btn-primary" @click="retryInboxAnalysis" :disabled="isRetrying">{{ isRetrying ? '重试中…' : '重新解析' }}</button>
+              <button class="btn-verify" @click="verifyInboxStatus">校验状态</button>
+              <button class="btn-dismiss" @click="resetUpload">关闭</button>
+            </div>
+          </div>
 
-          <p class="drop-hint">
-            <span class="pulse-dot"></span>
-            首次解析约需 30-60 秒{{ '.'.repeat(waitingDots) }}
-          </p>
-        </template>
-
-        <!-- 手动轮询模式（降级） -->
-        <template v-else-if="uploadResult === 'success'">
-          <div class="spinner"></div>
-          <p class="drop-title">简历已就绪</p>
-          <p class="drop-desc">正在连接 AI 服务…</p>
-          <p class="drop-hint">
-            <span class="pulse-dot"></span>
-            请稍候{{ '.'.repeat(waitingDots) }}
-          </p>
+          <!-- ====== 已取消 ====== -->
+          <div v-else-if="inboxPhase === 'cancelled'" class="result-state result-cancelled">
+            <div class="result-icon">⊘</div>
+            <p class="result-title">已取消</p>
+            <p class="result-desc">解析已被手动取消</p>
+            <div class="result-actions">
+              <button class="btn btn-primary" @click="retryInboxAnalysis" :disabled="isRetrying">{{ isRetrying ? '重试中…' : '重新解析' }}</button>
+              <button class="btn-dismiss" @click="resetUpload">关闭</button>
+            </div>
+          </div>
         </template>
 
         <!-- 提取失败 -->
-        <template v-else-if="uploadResult === 'error'">
+        <template v-else-if="uploadResult === 'extract-error'">
           <div class="drop-icon drop-icon--error">&#10007;</div>
           <p class="drop-title">提取失败</p>
           <p class="drop-desc">{{ uploadError }}</p>
@@ -388,12 +409,12 @@ async function handleFile(file) {
       startPolling(true)
     } else {
       stopDots()
-      uploadResult.value = 'error'
+      uploadResult.value = 'extract-error'
       uploadError.value = result.error || '启动解析失败'
     }
   } catch (e) {
     isExtracting.value = false
-    uploadResult.value = 'error'
+    uploadResult.value = 'extract-error'
     uploadError.value = e.message
   }
 }
@@ -401,12 +422,62 @@ async function handleFile(file) {
 function resetUpload() {
   uploadResult.value = null
   uploadError.value = ''
+  inboxPhase.value = ''
+  isRetrying.value = false
+}
+
+async function verifyInboxStatus() {
+  try {
+    const res = await api.post('/api/inbox/verify')
+    if (res) {
+      if (res.status === 'ok') {
+        await store.fetch()
+        if (!store.isEmpty) uploadResult.value = null
+      }
+      progress.value = { ...progress.value, current: '校验: ' + res.issues.map(i => `[${i.level}] ${i.msg}`).join('; ') }
+    }
+  } catch (e) { progress.value = { ...progress.value, current: '校验失败: ' + e.message } }
+}
+
+async function cancelInboxAnalysis() {
+  try { await api.post('/api/inbox/cancel') } catch {}
+  stopPolling(); store.clearImportState()
+  inboxPhase.value = 'cancelled'
+}
+
+async function retryInboxAnalysis() {
+  if (isRetrying.value) return
+  isRetrying.value = true
+  try {
+    const res = await api.post('/api/inbox/retry')
+    if (res.ok) {
+      inboxPhase.value = 'running'; isRetrying.value = false
+      startDots(); startElapsed()
+      progress.value = { status: 'running', steps: [], current: '正在启动AI引擎（重试）…' }
+      uploadResult.value = 'processing'
+      startPolling(true)
+    } else { isRetrying.value = false; progress.value = { ...progress.value, current: '重试失败: ' + (res.error || '未知错误') } }
+  } catch (e) { isRetrying.value = false; progress.value = { ...progress.value, current: '重试: ' + e.message } }
 }
 
 // === 轮询收件箱状态 ===
-// 进度追踪
 const progress = ref({ status: 'idle', steps: [], current: '' })
 const logText = ref('')
+const debugCopied = ref(false)
+const inboxPhase = ref('') // '' | 'running' | 'error' | 'timeout' | 'cancelled'
+const isRetrying = ref(false)
+const elapsedSec = ref(0)
+let elapsedTimer = null
+
+const elapsedStr = computed(() => {
+  const m = Math.floor(elapsedSec.value / 60)
+  const s = elapsedSec.value % 60
+  return m + ':' + String(s).padStart(2, '0')
+})
+const logLines = computed(() => logText.value ? logText.value.split('\n').length : 0)
+
+function startElapsed() { elapsedSec.value = 0; elapsedTimer = setInterval(() => { elapsedSec.value++ }, 1000) }
+function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null } }
 const milestoneLabels = [
   { key: '基本信息', label: '基本信息' },
   { key: '技能', label: '技能分析' },
@@ -440,12 +511,10 @@ let progressPollTimer = null
 let logPollTimer = null
 
 function startPolling(isAuto = false) {
-  if (!isAuto) {
-    uploadResult.value = 'success'
-  }
   showUpdateHint.value = false
+  inboxPhase.value = 'running'
   store.saveImportState({ status: 'waiting', startedAt: new Date().toISOString() })
-  startDots()
+  startDots(); startElapsed()
 
   const check = async () => {
     const status = await store.checkInboxStatus()
@@ -453,46 +522,52 @@ function startPolling(isAuto = false) {
       stopPolling()
       await store.clearImportState()
       await store.fetch()
-      if (!store.isEmpty) {
-        uploadResult.value = null
-      }
+      if (!store.isEmpty) uploadResult.value = null
     }
   }
-
   check()
   pollTimer.value = setInterval(check, 3000)
 
-  // 自动模式额外轮询进度 + 日志
+  // 轮询进度 + 日志
   if (isAuto) {
     const pollProgress = async () => {
       try {
         const res = await api.get('/api/inbox/progress')
-        if (res) progress.value = res
+        if (res) {
+          progress.value = res
+          if (res.status === 'error') { stopPolling(); store.clearImportState(); inboxPhase.value = 'error' }
+          else if (res.status === 'timeout') { stopPolling(); store.clearImportState(); inboxPhase.value = 'timeout' }
+          else if (res.status === 'cancelled') { stopPolling(); store.clearImportState(); inboxPhase.value = 'cancelled' }
+        }
       } catch {}
     }
     pollProgress()
     progressPollTimer = setInterval(pollProgress, 1500)
 
-    // 日志延迟加载（仅当用户展开日志面板时）
     logPollTimer = setInterval(async () => {
-      if (logText.value === '(加载中…)' || (typeof logText.value === 'string' && logText.value.length > 0 && logText.value !== '(暂无日志)')) {
-        try {
-          const res = await api.get('/api/inbox/log')
-          if (res && res.text) logText.value = res.text
-        } catch {}
+      try {
+        const res = await api.get('/api/inbox/log')
+        if (res && res.text) logText.value = res.text
+      } catch {}
+    }, 2000)
+
+    // 前端侧兜底超时（6 分钟）
+    setTimeout(() => {
+      if (inboxPhase.value === 'running') {
+        stopPolling(); store.clearImportState()
+        inboxPhase.value = 'timeout'
+        progress.value = { ...progress.value, status: 'timeout', current: '解析超时 (前端强制终止轮询)' }
       }
-    }, 3000)
+    }, 360000)
   }
 }
 
-function onLogToggle(e) {
-  // 展开时立即加载日志
-  if (e.target.open && (!logText.value || logText.value === '(暂无日志)')) {
-    logText.value = '(加载中…)'
-    api.get('/api/inbox/log').then(res => {
-      if (res && res.text) logText.value = res.text
-    }).catch(() => { logText.value = '(加载失败)' })
-  }
+async function copyFullLog() {
+  try {
+    await navigator.clipboard.writeText(logText.value || '')
+    debugCopied.value = true
+    setTimeout(() => { debugCopied.value = false }, 2000)
+  } catch {}
 }
 
 function startDots() {
@@ -523,6 +598,7 @@ function stopPolling() {
     logPollTimer = null
   }
   stopDots()
+  stopElapsed()
 }
 
 // 更新内容引导
@@ -676,7 +752,17 @@ onMounted(async () => {
   // 恢复持久化的导入等待状态（页面刷新后不丢失）
   const saved = await store.getImportState()
   if (saved && saved.status === 'waiting' && store.isEmpty) {
-    startPolling()
+    uploadResult.value = 'processing'
+    inboxPhase.value = 'running'
+    startDots(); startElapsed()
+    startPolling(true)
+    // 兜底超时
+    setTimeout(() => {
+      if (inboxPhase.value === 'running') {
+        stopPolling(); store.clearImportState()
+        inboxPhase.value = 'timeout'
+      }
+    }, 360000)
   }
 })
 
@@ -1199,49 +1285,38 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-/* 日志面板 */
-.log-panel {
-  max-width: 420px;
-  margin: var(--space-md) auto 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
+/* 调试面板 */
+.debug-panel { max-width: 560px; margin: var(--space-md) auto 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.debug-header { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-md); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.debug-title { font-size: var(--text-xs); font-weight: 600; color: var(--color-text); }
+.tab-badge { font-size: 0.6rem; color: var(--color-text-muted); font-family: monospace; }
+.debug-body { max-height: 460px; overflow-y: auto; }
+.debug-code { margin: 0; padding: var(--space-md); font-size: 0.62rem; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; line-height: 1.55; white-space: pre-wrap; word-break: break-all; background: #1a1a2e; color: #a0d0ff; }
+.debug-btn-copy { font-size: var(--text-xs); color: var(--color-text-muted); background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 2px 10px; cursor: pointer; transition: all 0.15s; font-family: var(--font-body); margin-left: auto; }
+.debug-btn-copy:hover { color: var(--blue); border-color: var(--blue); }
+.debug-copied { font-size: var(--text-xs); color: var(--color-success); }
 
-.log-toggle {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-surface);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-}
+/* 耗时 */
+.analyzing-elapsed { margin-top: var(--space-sm); font-size: var(--text-xs); color: var(--color-text-muted); font-family: monospace; }
+/* 操作按钮行 */
+.analyzing-actions { display: flex; align-items: center; justify-content: center; gap: var(--space-md); margin-top: var(--space-md); }
+.btn-verify { font-size: var(--text-xs); color: var(--color-text-muted); background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 12px; cursor: pointer; font-family: var(--font-body); transition: all 0.15s; }
+.btn-verify:hover { color: var(--blue); border-color: var(--blue); }
+.btn-dismiss { display: block; margin: var(--space-md) auto 0; font-size: var(--text-sm); color: var(--color-text-muted); cursor: pointer; background: none; border: none; font-family: var(--font-body); }
+.btn-dismiss:hover { color: var(--blue); }
 
-.log-toggle:hover { background: var(--color-primary-bg); }
-
-.log-status {
-  font-size: 0.65rem;
-  color: var(--color-text-muted);
-  font-family: monospace;
-}
-
-.log-content {
-  margin: 0;
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.65rem;
-  font-family: 'Consolas', 'Courier New', monospace;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  background: #1a1a2e;
-  color: #a0d0ff;
-  max-height: 260px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
+/* 结果状态：error / timeout / cancelled */
+.result-state { text-align: center; padding: var(--space-lg) 0; }
+.result-icon { font-size: 2.5rem; line-height: 1; margin-bottom: var(--space-md); }
+.result-error .result-icon { color: var(--color-danger); }
+.result-error .result-title { color: var(--color-danger); }
+.result-timeout .result-icon { color: #f59e0b; }
+.result-timeout .result-title { color: #f59e0b; }
+.result-cancelled .result-icon { color: var(--color-text-muted); }
+.result-cancelled .result-title { color: var(--color-text-muted); }
+.result-title { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-xs); }
+.result-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-lg); }
+.result-actions { display: flex; align-items: center; justify-content: center; gap: var(--space-md); flex-wrap: wrap; }
 
 /* 终端命令展示 */
 .terminal-cmd {

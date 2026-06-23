@@ -20,7 +20,16 @@
     <article v-else class="jd-content">
       <button class="back-btn" @click="$router.push('/jobs')">← 返回岗位列表</button>
 
-      <h1 class="page-title">{{ store.current.parsed?.title || store.current.id }}</h1>
+      <div class="jd-header-row">
+        <h1 class="page-title">{{ store.current.parsed?.title || store.current.id }}</h1>
+        <button
+          v-if="!store.current.reportIds?.length && !store.current.parsed"
+          class="btn btn-primary"
+          @click="triggerAnalyze"
+        >
+          分析此岗位
+        </button>
+      </div>
 
       <section class="card raw-text">
         <h2 class="section-title">原始岗位描述</h2>
@@ -76,18 +85,24 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useJDsStore } from '@/stores/jds'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import ErrorState from '@/components/shared/ErrorState.vue'
 
 const route = useRoute()
+const router = useRouter()
 const store = useJDsStore()
 
 function loadJD() {
   const id = route.params.id
   if (id) store.fetchOne(id)
+}
+
+function triggerAnalyze() {
+  const id = route.params.id
+  if (id) router.push({ path: '/jobs', query: { analyze: id } })
 }
 
 function categoryIcon(cat) {
@@ -101,6 +116,14 @@ onMounted(loadJD)
 </script>
 
 <style scoped>
+.jd-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.jd-header-row .page-title { margin-bottom: 0; }
 .back-btn {
   font-size: var(--text-sm);
   color: var(--color-primary);

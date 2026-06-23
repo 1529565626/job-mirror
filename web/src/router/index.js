@@ -40,6 +40,12 @@ const routes = [
     meta: { title: '报告详情' }
   },
   {
+    path: '/logs',
+    name: 'logs',
+    component: () => import('@/pages/LogsPage.vue'),
+    meta: { title: '执行日志' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
