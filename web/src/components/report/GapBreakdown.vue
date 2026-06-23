@@ -39,6 +39,7 @@
       <!-- 该类别下的学习建议 -->
       <div v-for="item in cat.items" :key="'advice-' + item.skillName">
         <div v-if="item.learningAdvice" class="learning-advice">
+          <div class="advice-title">📖 学习建议</div>
           <div class="advice-meta">
             预计 {{ item.learningAdvice.estimatedWeeks }} 周 · 难度 {{ item.learningAdvice.difficulty }}
           </div>
@@ -207,6 +208,12 @@ function matchLabel(m) {
   border-radius: var(--radius-sm);
 }
 
+.advice-title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--blue);
+  margin-bottom: var(--space-xs);
+}
 .advice-meta {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
