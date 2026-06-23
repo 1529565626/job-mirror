@@ -78,6 +78,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .task-type { font-size: 0.7rem; font-weight: 600; color: var(--blue); }
 .task-current { font-size: 0.65rem; color: var(--color-text-muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.nav-footer { padding: var(--space-md) var(--space-lg); border-top: 1px solid var(--color-border); }
+.nav-footer { padding: var(--space-md) var(--space-lg) var(--space-md) 44px; border-top: 1px solid var(--color-border); }
 .version { font-size: var(--text-xs); color: var(--color-text-muted); }
 </style>
