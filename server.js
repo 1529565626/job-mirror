@@ -8,6 +8,7 @@ const { execSync, spawn } = require('child_process')
 const ROOT = path.join(os.homedir(), '.jobmirror')
 const LOG_DIR = path.join(__dirname, 'log')
 const PROJECT_DIR = __dirname
+const SKILL_FILE = path.join(__dirname, 'skill', 'SKILL.md')
 const PORT = 3099
 
 // 扫描运行中的任务
@@ -954,7 +955,7 @@ const routes = {
       progressFile, logFile, promptFile: ipromptFile, sessionDir,
       label: '简历导入', jdId: 'inbox',
       metadata: { type: 'inbox' },
-      prompt: '用职镜导入收件箱。每完成一步输出 [STEP] 步骤描述。最后输出 DONE。',
+      prompt: 'Read ' + SKILL_FILE + '，严格按照其中的「工作流 0: 导入收件箱」执行。每完成一步输出 [STEP] 步骤描述。最后输出 DONE。',
       onDone: (code) => {
         const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
         p.status = fs.existsSync(processed) ? 'done' : 'error'
@@ -1036,7 +1037,7 @@ const routes = {
       progressFile, logFile, promptFile: ipromptFile, sessionDir,
       label: '简历导入（重试）', jdId: 'inbox',
       metadata: { type: 'inbox', retry: true },
-      prompt: '用职镜导入收件箱。每完成一步输出 [STEP] 步骤描述。最后输出 DONE。',
+      prompt: 'Read ' + SKILL_FILE + '，严格按照其中的「工作流 0: 导入收件箱」执行。每完成一步输出 [STEP] 步骤描述。最后输出 DONE。',
       onDone: (code) => {
         const p = JSON.parse(fs.readFileSync(progressFile, 'utf-8'))
         p.status = fs.existsSync(processed) ? 'done' : 'error'
