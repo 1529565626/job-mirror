@@ -15,6 +15,39 @@
 数据目录: ~/.jobmirror/ (自动创建)
 ```
 
+## 前置环境检测（安装前必须先执行）
+
+AI Agent 进入项目后，**在执行任何安装命令之前**，必须逐项检测以下环境。每项输出 ✅/❌ 状态，全部通过再执行安装；有 ❌ 则先引导用户修复。
+
+### 检测清单
+
+| # | 检测项 | 检测命令 | 通过标准 | 失败时引导方案 |
+|---|--------|----------|----------|----------------|
+| 1 | Node.js 已安装 | `node --version` | 输出版本号 ≥ 18.0.0 | 引导用户访问 https://nodejs.org 下载 LTS 版本，Windows 用户推荐 .msi 安装包 |
+| 2 | npm 可用 | `npm --version` | 输出版本号 ≥ 9.0.0 | 通常随 Node.js 自带；若缺失则在终端执行 `npm install -g npm@latest` |
+| 3 | Git 已安装 | `git --version` | 输出版本号 | 引导用户访问 https://git-scm.com/download/win 下载安装，安装时勾选 "Git Bash" |
+| 4 | 项目依赖目录存在 | 检查 `web/node_modules/` 是否存在 | 目录存在 | 若不存在，安装阶段执行 `cd web && npm install` 即可 |
+| 5 | 端口 3099 未被占用 | Windows: `netstat -ano | findstr :3099`; Unix: `lsof -i :3099` | 无输出或仅本进程占用 | 若被占用，提示用户终止占用进程或修改 `server.js` 端口 |
+| 6 | 端口 5173 未被占用 | Windows: `netstat -ano | findstr :5173`; Unix: `lsof -i :5173` | 无输出或仅本进程占用 | 若被占用，Vite 会自动尝试下一个端口，仅作警告 |
+| 7 | npm 注册源可访问 | `npm ping` 或 `npm config get registry` | 无超时错误 | 若超时，引导设置国内镜像: `npm config set registry https://registry.npmmirror.com` |
+| 8 | 磁盘可写 (~/.jobmirror/) | 尝试 `mkdir -p ~/.jobmirror` 并写入测试文件 | 创建+写入成功 | 检查用户目录权限，Windows 下确保 `%USERPROFILE%` 可写 |
+
+### Windows 特别说明
+
+- 优先使用 **Git Bash** 或 **PowerShell 7+** 执行命令，避免 CMD 下的兼容问题
+- 若 `node` 命令在 CMD 中不可用，检查是否已添加到系统 PATH，或重启终端
+- `~/.jobmirror/` 在 Windows 上对应 `%USERPROFILE%\.jobmirror\`，由 server.js 自动处理
+- 若遇到 `ExecutionPolicy` 限制无法运行脚本，在 PowerShell(管理员) 中执行: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+### 执行流程
+
+```
+1. 逐项运行检测命令 → 记录每项状态
+2. 全部 ✅ → 输出"环境检测通过，开始安装" → 执行安装指南中的 3 步
+3. 存在 ❌ → 按"失败时引导方案"逐条告知用户如何修复 → 等待用户确认后重新检测
+4. 安装完成后 → 验证两个服务是否正常启动 (curl http://localhost:5173)
+```
+
 ## 项目结构
 
 ```
